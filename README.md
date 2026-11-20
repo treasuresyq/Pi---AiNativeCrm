@@ -29,23 +29,29 @@ AI Native CRM 是一个内部研发的 Agent-native CRM 工作台。联系人、
 
 ## 产品预览
 
-以下截图来自项目的静态产品演示，展示 AI Native CRM 的真实信息架构与主要工作流。演示使用虚构数据，不会发起真实模型请求，也不会向外部渠道发送消息。
-
 ### 工作台概览
 
 ![AI Native CRM 工作台概览](docs/screenshots/readme-2026-11-20/overview.png)
+
+工作台概览集中展示商机金额、收件箱未读消息、待处理跟进任务和待审核客户记忆，帮助团队快速了解当前 CRM 的业务状态与待办重点。
 
 ### Agent 工作台
 
 ![Agent CRM 工作台](docs/screenshots/readme-2026-11-20/workbench.png)
 
+Agent 工作台以 CRM 对象和自然语言任务为入口，展示内置 Agent、运行模式、执行范围、数据库安全边界以及待确认的业务动作。
+
 ### 会话收件箱
 
 ![会话收件箱](docs/screenshots/readme-2026-11-20/inbox.png)
 
+会话收件箱将客户消息、人工接管、AI 草稿、客户记忆和关联商机组织在同一视图中，帮助团队在保持上下文的同时处理客户沟通。
+
 ### 销售漏斗
 
 ![销售漏斗](docs/screenshots/readme-2026-11-20/funnel.png)
+
+销售漏斗按新客户、已联系、方案沟通和已成交等阶段呈现商机，支持查看金额、负责人、停滞状态和下一步跟进方向。
 
 ## 项目定位
 
