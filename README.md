@@ -1,23 +1,23 @@
 <h1 align="center">AI Native CRM</h1>
 
-<div align="center">
+<p align="center"><img src="docs/brand/ai-native-crm-icon.svg" alt="AI Native CRM" width="104" /></p>
+<p align="center">
+  <strong>以真实 CRM 为状态空间的 Agent 原生工作台。</strong><br />
+  让 Agent 读取客户与商机，消费知识和记忆，调用工具推进业务；让人看清它做了什么、依据什么，以及 CRM 发生了哪些变化。
+</p>
+<p align="center">
+  <a href="#产品预览">产品预览</a> · <a href="#核心功能">核心功能</a> ·
+  <a href="#快速开始">快速开始</a> · <a href="docs/architecture/README.md">架构说明</a> ·
+  <a href="docs/integrations/agent-services.md">服务接入</a> · <a href="CONTRIBUTING.md">社区与贡献</a>
+</p>
+<p align="center">
+  <img src="https://img.shields.io/badge/status-内部研发-E1845A" alt="内部研发版本" />
+  <img src="https://img.shields.io/badge/Next.js-React%20%2B%20TypeScript-477b74" alt="Next.js, React and TypeScript" />
+  <img src="https://img.shields.io/badge/license-MIT-934531" alt="MIT License" />
+</p>
+<p align="center"><a href="docs/SETUP.md">开发配置</a> · <a href="docs/testing/system-acceptance-fixes-2026-10-03.md">验证记录</a></p>
 
-**面向 Agent 协作的多租户 CRM 工作台**
-
-把客户、会话、商机、任务、知识与记忆组织成统一业务上下文，让 AI Agent 在权限、审批、预算和审计约束下参与真实 CRM 工作。
-
-<a href="https://github.com/treasuresyq/AiNativeCrm">GitHub</a> ·
-<a href="https://crm.helson.top/#/app">在线产品预览</a> ·
-<a href="docs/architecture/README.md">系统架构</a> ·
-<a href="docs/SETUP.md">开发配置</a> ·
-<a href="docs/deploy-selfhost/README.md">自托管部署</a>
-
-![GitHub](https://img.shields.io/badge/GitHub-treasuresyq%2FAiNativeCrm-181717?logo=github)
-![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=next.js)
-![TypeScript](https://img.shields.io/badge/TypeScript-5%2B-3178C6?logo=typescript)
-![License](https://img.shields.io/badge/license-MIT-934531)
-
-</div>
+> CRM 保存业务事实，AI 驱动 Agent 行动，Harness 管理执行边界。
 
 ## 产品预览
 
@@ -50,9 +50,7 @@ AI Native CRM 不是只展示页面的静态站点，而是一个由 Next.js、S
 - 用户可以查看 Agent 做了什么、依据什么、调用了哪些工具，以及 CRM 发生了什么变化。
 - 多 Agent 调查、人工确认、暂停恢复、预算控制和执行审计都成为可追踪的业务流程。
 
-> CRM 保存业务事实，Agent Runtime 驱动行动，Harness 管理执行边界。
-
-## 核心能力
+## 核心功能
 
 ### Agent CRM 工作台
 
