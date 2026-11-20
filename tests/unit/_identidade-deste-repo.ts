@@ -46,7 +46,7 @@
  * reprova lá. Não remova essa derivação pensando que é redundante — ela é o que
  * torna a âncora não-falsificável de dentro do diff.
  */
-export const NAMESPACE_DESTE_REPO = "ghcr.io/ydflow";
+export const NAMESPACE_DESTE_REPO = "ghcr.io/treasuresyq";
 
 /**
  * O dono de uma referência `<registry>/<dono>`.

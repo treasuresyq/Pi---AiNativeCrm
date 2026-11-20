@@ -60,13 +60,6 @@ const atendentesInputShape = {
 
 export const crmListAvailableAttendants: McpToolDefinition<typeof atendentesInputShape> = {
   name: "crm_list_available_attendants",
-  // Lê escala, capacidade e presença.
-  annotations: {
-    readOnlyHint: true,
-    destructiveHint: false,
-    idempotentHint: true,
-    openWorldHint: false,
-  },
   description:
     "Atendentes da org com is_available, capacity, current_load e can_take_now (disponível ∧ " +
     "com folga ∧ dentro do horário — mesmo predicado do worker de roteamento), mais `present` " +
@@ -129,13 +122,6 @@ const listaChamadosInputShape = {
 
 export const crmListHumanCases: McpToolDefinition<typeof listaChamadosInputShape> = {
   name: "crm_list_human_cases",
-  // Lê casos e contagem de abertos.
-  annotations: {
-    readOnlyHint: true,
-    destructiveHint: false,
-    idempotentHint: true,
-    openWorldHint: false,
-  },
   description:
     "Casos humanos da org por estado. 'abertos' = awaiting_human|awaiting_lead; 'fechados' = " +
     "resolved|escalated|cancelled. Devolve title, blocker, status, conversation_id e o nome do " +
@@ -170,13 +156,6 @@ const chamadoInputShape = {
 
 export const crmGetHumanCase: McpToolDefinition<typeof chamadoInputShape> = {
   name: "crm_get_human_case",
-  // Lê caso, timeline e continuidade humana.
-  annotations: {
-    readOnlyHint: true,
-    destructiveHint: false,
-    idempotentHint: true,
-    openWorldHint: false,
-  },
   description:
     "Detalhe de um caso humano + timeline completa (eventos com actor_kind, human_action e o " +
     "texto escrito). Inclui `human_continuity`: o resumo pronto do que a pessoa decidiu nesta " +
@@ -222,13 +201,6 @@ const notaInputShape = {
 
 export const crmAddCaseNote: McpToolDefinition<typeof notaInputShape> = {
   name: "crm_add_case_note",
-  // Acrescenta evento agent_noted sem chave de deduplicação.
-  annotations: {
-    readOnlyHint: false,
-    destructiveHint: false,
-    idempotentHint: false,
-    openWorldHint: false,
-  },
   description:
     "Registra no caso ABERTO o que aconteceu depois da abertura (kind='agent_noted', " +
     "actor_kind='agent'). Recusa caso já fechado ou de outra org. Escreva o FATO novo, não a " +
@@ -279,13 +251,6 @@ const encerrarInputShape = {
 
 export const crmCloseHumanCase: McpToolDefinition<typeof encerrarInputShape> = {
   name: "crm_close_human_case",
-  // Fecha caso e emite evento consumido pelos fluxos; não promete replay.
-  annotations: {
-    readOnlyHint: false,
-    destructiveHint: true,
-    idempotentHint: false,
-    openWorldHint: true,
-  },
   description:
     "Encerra um caso ABERTO com o desfecho registrado: 'resolvido' (status resolved) ou " +
     "'sem_necessidade' (status cancelled). Grava actor_kind='agent' — nunca se passa por " +
@@ -334,13 +299,6 @@ const retomarInputShape = {
 
 export const crmResumeAiAttendance: McpToolDefinition<typeof retomarInputShape> = {
   name: "crm_resume_ai_attendance",
-  // Reativa IA; mesmo já retomado regrava data/checkpoint e emite sinal.
-  annotations: {
-    readOnlyHint: false,
-    destructiveHint: true,
-    idempotentHint: false,
-    openWorldHint: true,
-  },
   description:
     "Devolve o atendimento da conversa ao agente: solta o dono humano, limpa " +
     "contacts.force_human e bot_silenced_until, e grava no checkpoint do lead o que a pessoa " +

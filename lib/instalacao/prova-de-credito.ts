@@ -22,9 +22,9 @@ import { normalizarErro } from "@/lib/agent-engine/edge/llm/run-model-call";
 import {
   cabecalhosDeAtribuicaoOpenRouter,
   DEEPSEEK_ENDPOINT,
-  OPENCODE_ZEN_ENDPOINT,
   OPENROUTER_ENDPOINT,
 } from "@/lib/agent-engine/edge/llm/providers";
+import { cabecalhosOpenCode, endpointOpenCode } from "@/lib/ai/opencode-endpoint";
 
 export type ResultadoDaProva =
   | { ok: true }
@@ -95,8 +95,12 @@ export function montarRequisicaoDeProva(
       };
     case "opencode":
       return {
-        url: `${OPENCODE_ZEN_ENDPOINT}/chat/completions`,
-        headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        url: `${endpointOpenCode(process.env.OPENCODE_BASE_URL)}/chat/completions`,
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+          ...cabecalhosOpenCode(process.env.OPENCODE_SESSION),
+        },
         body: { model: modelo, max_tokens: 1, messages: msg },
       };
     case "deepseek":

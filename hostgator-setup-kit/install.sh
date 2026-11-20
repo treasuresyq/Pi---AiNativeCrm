@@ -15,11 +15,11 @@ set -euo pipefail
 # de qualquer 'cd' (step 2 pode entrar num repo clonado à parte).
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 
-REPO_URL="${REPO_URL:-https://github.com/ydflow/pi-native-crm.git}"
+REPO_URL="${REPO_URL:-https://github.com/treasuresyq/AiNativeCrm.git}"
 # Uma constante, dois usos (o fim feliz e o fim travado) — e o comecar.sh tem a
 # gêmea. Link repetido à mão vira link divergente na primeira troca.
-COMUNIDADE_URL="https://github.com/ydflow/pi-native-crm/discussions"
-REPO_DIR="${REPO_DIR:-pi-native-crm}"
+COMUNIDADE_URL="https://github.com/treasuresyq/AiNativeCrm/discussions"
+REPO_DIR="${REPO_DIR:-AiNativeCrm}"
 COMPOSE="docker-compose.prod.yml"
 COMPOSE_TRAEFIK="docker-compose.traefik.yml"
 COMPOSE_NPM="docker-compose.npm.yml"
@@ -1852,6 +1852,12 @@ if [ -f supabase/baseline.sql ]; then
      rode de novo com SUPABASE_DB_ADMIN_URL='postgresql://<dono>:<senha>@<host>:5432/postgres'
      — ela roda só o schema e NÃO é gravada no .env dos contêineres."
     fi
+  fi
+
+  if provisionar_leitura_ontology; then
+    c_grn "✓ leitura semântica recebeu role restrita"
+  else
+    c_ylw "⚠ leitura semântica indisponível: não foi possível conceder sua role restrita. Confira as conexões de app e administração e repita a instalação."
   fi
 
   # Verificação real, não wishful thinking: o app precisa das tabelas core.

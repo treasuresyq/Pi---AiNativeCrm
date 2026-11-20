@@ -28,10 +28,13 @@ the selected model is absent, deprecated, or not declared tool-capable.
 The workbench binding is translated by `lib/agent-runtime/pi/model-adapter.ts` into Pi's
 `Model<Api>` plus `StreamFn`; `PiAgentRuntime` owns the loop and normalizes SDK lifecycle events into
 CRM runtime events. OpenAI-compatible providers use Pi's OpenRouter chat-completions transport
-implementation behind the CRM-owned provider id. OpenCode Zen fixes the canonical endpoint at
-`https://opencode.ai/zen/v1`, API `openai-completions`, and forwards the organization credential;
-the model id is selected from the catalog. The adapter's allowlisted fetch constrains egress to
-that endpoint. A real model/tool-loop smoke was run against Zen with a read-only CRM-shaped tool
+implementation behind the CRM-owned provider id. OpenCode uses API `openai-completions`.
+The canonical endpoint is `https://opencode.ai/zen/v1` unless `OPENCODE_BASE_URL` is set
+(empty stays canonical; a trailing slash is stripped). The credential validator, the Pi
+adapter, the auxiliary provider factory, and the credit probe send `x-opencode-session`
+(`OPENCODE_SESSION`, or `crm` when that variable is empty) and forward the organization
+credential. The model id is selected from the catalog. The adapter's allowlisted fetch
+constrains egress to that endpoint. A real model/tool-loop smoke was run against Zen with a read-only CRM-shaped tool
 fixture; it proves protocol and tool-call compatibility, not the durable Workbench path or a real
 tenant database.
 
@@ -82,7 +85,13 @@ Opportunity-scoped runs of Sales Operations and CRM Supervisor can execute the v
 parallel: customer/conversation evidence, opportunity/follow-up diagnosis, and policy/organization
 knowledge. Each specialist is a durable `ai_workbench_runs` child with its own private Pi state,
 ordered events, model-call attribution, terminal status, and shared parent budget. The parent owns
-the synthesis and remains the only writer.
+the synthesis and remains the only writer. A field-hash or source-revision disagreement
+does not stay a report line: `governParentOnExpertConflict` is the parent policy hook.
+A field-hash mismatch forces a follow-up question, stops CRM writes, and marks the run
+unresolved (`expert_conflict_unresolved`). A source-revision mismatch stops writes and
+marks the run unresolved without letting the parent pick either version. In both cases
+the parent model turn does not start, so it cannot stage a write. The existing workbench
+run detail shows that unresolved state on the timeline and next to the specialist list.
 
 `BoundedAgentCollaborationRuntime` enforces concurrency, aggregate tool calls, token allocation,
 timeout and parent cancellation. Completed child results are reused after a worker retry. Every
@@ -90,12 +99,14 @@ unfinished child must first acquire an atomic PostgreSQL execution lease and a u
 token. A lease-expired child may be reclaimed, but the stale worker's token can no longer complete,
 fail or cancel it. Parent cancellation propagates to active calls and marks not-yet-started children
 cancelled. Parent events expose start, completion, failure and conflict summaries without exposing
-CRM bodies. The database enforces inspect-only child runs, same-organization parent links, one
+CRM bodies. Material conflict events also carry `governance` (`ask` or `stop_writes`),
+`writes: stopped` and `unresolved: true`. Field values and hashes stay off the event. The database enforces inspect-only child runs, same-organization parent links, one
 child per specialist and parent, root/child lease shape, and service-role-only claim access.
 
 This is deliberately not a generic agent graph. Bulk lead screening stays a deterministic database
-query followed by Agent analysis of a shortlist; it never creates one Agent per row. Writes,
-external effects and human confirmation continue through the existing parent proposal policy.
+query followed by Agent analysis of a shortlist; it never creates one Agent per row. When experts
+agree, writes, external effects and human confirmation continue through the existing parent
+proposal policy. A governed conflict never reaches that path.
 
 ## Run and event contract
 

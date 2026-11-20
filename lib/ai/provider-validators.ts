@@ -8,6 +8,7 @@
  *
  * Timeout 5s, sem retry. Erros 401 são distintos de erros de rede.
  */
+import { cabecalhosOpenCode, endpointOpenCode } from "@/lib/ai/opencode-endpoint";
 import type { PROVEDORES } from "@/lib/ai/pontos/provedores";
 import { env } from "@/lib/env";
 
@@ -240,12 +241,22 @@ export async function validateDeepSeekKey(apiKey: string): Promise<ValidationRes
   }
 }
 
-/** OpenCode Zen exposes an authenticated OpenAI-compatible model catalog. */
+/**
+ * Catálogo autenticado do OpenCode, no endereço da instalação.
+ *
+ * `OPENCODE_BASE_URL` vazia continua em `https://opencode.ai/zen/v1`. O Go
+ * exige `x-opencode-session` — sem ele a geração volta 400 e a chave parece
+ * inválida. O header sai em toda listagem; a sessão vazia vale `crm`.
+ */
 export async function validateOpenCodeKey(apiKey: string): Promise<ValidationResult> {
   try {
-    const res = await timedFetch("https://opencode.ai/zen/v1/models", {
+    const base = endpointOpenCode(env.OPENCODE_BASE_URL);
+    const res = await timedFetch(`${base}/models`, {
       method: "GET",
-      headers: { Authorization: `Bearer ${apiKey}` },
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        ...cabecalhosOpenCode(env.OPENCODE_SESSION),
+      },
     });
     if (res.status === 401 || res.status === 403) {
       return { ok: false, error: "auth_failed_401" };

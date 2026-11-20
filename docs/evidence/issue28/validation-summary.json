@@ -1,0 +1,402 @@
+{
+  "schema_version": 1,
+  "issue": 28,
+  "pull_request": 29,
+  "verified_at": "2026-11-12T20:33:45.564581+00:00",
+  "base_commit": "0ff9f40ca2de9759f5059d9802f3f14841ed0dc0",
+  "product_source_commit": "1548b3d6c7b2b5c6323202a2c793d066d0aed62a",
+  "verdict": "feature_acceptance_passed_with_existing_repository_failures",
+  "whole_repository_green": false,
+  "feature_scope": "Complete Issue 28 P0–P3: SQL trust/lifecycle, event-backed L2, human review, maintenance/conflicts, per-request injection/usage/correction, metrics/evaluation and existing privacy safeguards.",
+  "feature_checks": {
+    "memory_regression": {
+      "unit_passed": 27,
+      "database_passed": 82,
+      "failed": 0,
+      "skipped": 0,
+      "source_commit": "988493a5767814a2edfe65e04d5b1e1aedf6a7a4",
+      "source_unchanged_since_gate": true,
+      "receipt_sha256": "544e51279dc32fdaa9306e4c03b1baf701d6be94d1747c6c3dae90837b1b761e",
+      "receipt": "tmp/customer-memory-regression/2026-11-12T20-32-13-222Z-e390a999/summary.json"
+    },
+    "http_retry_unit": {
+      "passed": 9,
+      "failed": 0
+    },
+    "production_build": {
+      "exit": 0,
+      "source_commit": "1548b3d6c7b2b5c6323202a2c793d066d0aed62a",
+      "log_sha256": "971c9de67c9a0dd8eb3dffdd788b7cf99c3aeca2f23b3b775440d13a54104633"
+    },
+    "chromium_e2e": {
+      "passed": 4,
+      "failed": 0,
+      "current_followup_build": true,
+      "missing_randomUUID_actual_post_sql_audit": true,
+      "source_commit": "1548b3d6c7b2b5c6323202a2c793d066d0aed62a",
+      "log_sha256": "a18172e9927c4df426c79201473a2e596c67e05948971569361e35302630c7ea"
+    },
+    "typecheck": {
+      "exit": 0,
+      "log_sha256": "d3389f6b7b40349555246abcb36391ae4d979877f3f2c28503a2fc1bd63f6941"
+    },
+    "lint": {
+      "whole_errors": 0,
+      "whole_existing_warnings": 477,
+      "repair_scoped_exit": 0,
+      "current_delta_scoped_exit": 0,
+      "whole_run_source_commit": "4778d18f1541e9872ba752d2b4cc913c1e93a674",
+      "current_delta_source_commit": "1548b3d6c7b2b5c6323202a2c793d066d0aed62a"
+    },
+    "data_bearing_update": {
+      "exit": 0,
+      "seeded_rows_retained": 10,
+      "view_oid_stable": true
+    },
+    "latest_release_fragment_check": {
+      "exit": 0
+    },
+    "latest_migration_collision_check": {
+      "exit": 0,
+      "main_numbers_free": true,
+      "other_draft_collision_warning": "PR 25; recheck merge order before merging"
+    },
+    "followup_delta_database": {
+      "files": 4,
+      "passed": 35,
+      "failed": 0,
+      "report_sha256": "2ed1846c9ba4ba9974fec4eb3bf98852247f253ff4929a9abae7e62d9c60cad4"
+    },
+    "followup_delta_unit": {
+      "files": 5,
+      "passed": 54,
+      "failed": 0,
+      "skipped": 1,
+      "skip_reason": "existing optional live OpenCode provider test requires separate key",
+      "report_sha256": "9b1ab0da60e9ee5c411f24f771fedd9aaaef41d8383e9d951958ed1b3eacc1e3"
+    }
+  },
+  "whole_unit_original": {
+    "exit": 1,
+    "files": 1348,
+    "file_passed": 1333,
+    "file_failed": 15,
+    "cases": 13173,
+    "normal_passed": 13150,
+    "expected_failed": 1,
+    "skipped": 1,
+    "failed": 21,
+    "unhandled_errors": 3,
+    "duration_seconds": 4840.35,
+    "mode": "Diagnostic started before HTTP repair; do not treat as an untouched final-tree all-green run. Current changed code tested separately.",
+    "log_sha256": "fc345da409045d114d268f57f82efcabd18f3a32e372cac16ee7ff96a819d431",
+    "resolution_counts": {
+      "fixed_in_fd0d37cb_unit_and_browser_verified": 2,
+      "independently_reproduced_on_origin_main": 8,
+      "unchanged_assertion_recheck_passed": 11
+    },
+    "failure_resolutions": [
+      {
+        "file": "tests/unit/acolhida-nao-toca-no-fork.test.ts",
+        "case": "dispara só em `opened`, e só em `pull_request_target`",
+        "resolution": "independently_reproduced_on_origin_main",
+        "recheck_report": null
+      },
+      {
+        "file": "tests/unit/guarda-da-release-reconhece-o-corte.test.ts",
+        "case": "RECUSA ALTO quando sobra fragmento que exige ação do operador",
+        "resolution": "independently_reproduced_on_origin_main",
+        "recheck_report": null
+      },
+      {
+        "file": "tests/unit/knobs-da-versao-publicada-sao-aplicados.test.ts",
+        "case": "todo campo carregado tem quem o aplique",
+        "resolution": "unchanged_assertion_recheck_passed",
+        "recheck_report": "current-scan-recheck.json"
+      },
+      {
+        "file": "tests/unit/packaging-artefato-do-cliente.test.ts",
+        "case": "nenhum gatilho reconstrói uma tag já publicada",
+        "resolution": "independently_reproduced_on_origin_main",
+        "recheck_report": null
+      },
+      {
+        "file": "lib/random-id.test.ts",
+        "case": "nenhum arquivo \"use client\" (nem lib/api/client.ts) usa crypto.randomUUID cru",
+        "resolution": "fixed_in_fd0d37cb_unit_and_browser_verified",
+        "recheck_report": null
+      },
+      {
+        "file": "lib/theme.test.tsx",
+        "case": "com tema salvo 'dark', a primeira passada do cliente bate com o servidor",
+        "resolution": "independently_reproduced_on_origin_main",
+        "recheck_report": null
+      },
+      {
+        "file": "components/ai/CustomerMemoryActivity.test.tsx",
+        "case": "explains missing configuration and reuses an uncertain retry key without secure-context randomUUID",
+        "resolution": "fixed_in_fd0d37cb_unit_and_browser_verified",
+        "recheck_report": null
+      },
+      {
+        "file": "tests/unit/faixa-de-conexao-caida-vem-do-seam.test.tsx",
+        "case": "recebe EXATAMENTE o que o seam devolveu — não uma lista montada na tela",
+        "resolution": "unchanged_assertion_recheck_passed",
+        "recheck_report": "current-baseline-recheck.json"
+      },
+      {
+        "file": "tests/unit/faixa-de-conexao-caida-vem-do-seam.test.tsx",
+        "case": "pergunta ao seam com o cliente admin e a organização ativa",
+        "resolution": "unchanged_assertion_recheck_passed",
+        "recheck_report": "current-baseline-recheck.json"
+      },
+      {
+        "file": "tests/unit/namespace-das-imagens.test.ts",
+        "case": "o literal do namespace só aparece nos arquivos permitidos",
+        "resolution": "unchanged_assertion_recheck_passed",
+        "recheck_report": "current-scan-recheck.json"
+      },
+      {
+        "file": "tests/unit/painel-nao-promete-o-que-nao-cumpre.test.ts",
+        "case": "acha uma leitura de ambiente que sabidamente existe",
+        "resolution": "unchanged_assertion_recheck_passed",
+        "recheck_report": "current-scan-recheck.json"
+      },
+      {
+        "file": "tests/unit/painel-nao-promete-o-que-nao-cumpre.test.ts",
+        "case": "RESEND_API_KEY tem leitor por valorDaInstalacao()",
+        "resolution": "unchanged_assertion_recheck_passed",
+        "recheck_report": "current-scan-recheck.json"
+      },
+      {
+        "file": "tests/unit/painel-nao-promete-o-que-nao-cumpre.test.ts",
+        "case": "RESEND_FROM_EMAIL tem leitor por valorDaInstalacao()",
+        "resolution": "unchanged_assertion_recheck_passed",
+        "recheck_report": "current-scan-recheck.json"
+      },
+      {
+        "file": "tests/unit/painel-nao-promete-o-que-nao-cumpre.test.ts",
+        "case": "RESEND_FROM_EMAIL não é mais lida direto do ambiente fora dos módulos autorizados",
+        "resolution": "unchanged_assertion_recheck_passed",
+        "recheck_report": "current-scan-recheck.json"
+      },
+      {
+        "file": "tests/unit/rotulo-do-contato.test.ts",
+        "case": "toda entrada de LEITURAS_LEGITIMAS ainda casa com uma linha real — a lista só encolhe",
+        "resolution": "unchanged_assertion_recheck_passed",
+        "recheck_report": "current-scan-recheck.json"
+      },
+      {
+        "file": "tests/unit/tag-em-lote-mostra-existentes.test.tsx",
+        "case": "as tags dos leads do quadro chegam ao menu de tag em lote",
+        "resolution": "unchanged_assertion_recheck_passed",
+        "recheck_report": "current-scan-recheck.json"
+      },
+      {
+        "file": "tests/unit/telas-sem-dado-de-mentira.test.ts",
+        "case": "nenhuma tela do tenant CHEGA a uma fixture, nem por caminho indireto",
+        "resolution": "unchanged_assertion_recheck_passed",
+        "recheck_report": "current-scan-recheck.json"
+      },
+      {
+        "file": "tests/unit/upload-templates-media-security.test.ts",
+        "case": "recusa requisição quando o usuário não possui permissão de agente (requireRole falha)",
+        "resolution": "independently_reproduced_on_origin_main",
+        "recheck_report": null
+      },
+      {
+        "file": "tests/unit/verify-crm-pipeline.test.ts",
+        "case": "o diário é schedule no repositório canônico e não escreve no PR",
+        "resolution": "independently_reproduced_on_origin_main",
+        "recheck_report": null
+      },
+      {
+        "file": "tests/unit/verify-crm-pipeline.test.ts",
+        "case": "o verificador corre depois do workflow ci e não trata o verde como veredito",
+        "resolution": "independently_reproduced_on_origin_main",
+        "recheck_report": null
+      },
+      {
+        "file": "tests/unit/verify-crm-pipeline.test.ts",
+        "case": "a prova do PR sobe o stack no ubuntu-latest e não passa sem segredo",
+        "resolution": "independently_reproduced_on_origin_main",
+        "recheck_report": null
+      }
+    ],
+    "unhandled_resolution": {
+      "crypto_randomUUID": "fixed in fd0d37cb; independent 9-case unit and 4-case browser proof",
+      "worker_startup": {
+        "files": [
+          "components/ui/motion-disclosure.test.tsx",
+          "tests/unit/conexao-caida-banner-papel.test.tsx"
+        ],
+        "recheck_passed": 21,
+        "recheck_failed": 0
+      }
+    }
+  },
+  "whole_database_original": {
+    "exit": 1,
+    "files": 274,
+    "normal_passed": 2313,
+    "expected_failed": 1,
+    "skipped": 1,
+    "failed": 1,
+    "duration_seconds": 1180.78,
+    "failure": "Generated-column scan exceeded its original 30s deadline.",
+    "unchanged_scan_and_worker_recheck": {
+      "files": 2,
+      "passed": 9,
+      "failed": 0,
+      "timeout_ms": 120000
+    },
+    "mode": "Historical complete run; current backend delta is covered by the new frozen memory gate and 35-case follow-up regression."
+  },
+  "local_reports": {
+    "final-full-unit.json": {
+      "sha256": "04a5c12a4be5497ccf6327dceedbb554eb3727bd9570ff83a18adbf84ad19229",
+      "total": 13173,
+      "json_passed_including_expected_fail": 13151,
+      "failed": 21,
+      "skipped": 1
+    },
+    "upstream-baseline-failures.json": {
+      "sha256": "004d76d71ec2fb0fb250e1c8ccf62feaedaadc83f20d0e0fb05b03d26fe1197b",
+      "total": 96,
+      "json_passed_including_expected_fail": 83,
+      "failed": 13,
+      "skipped": 0
+    },
+    "current-scan-recheck.json": {
+      "sha256": "ed84f3c9d311a6582e27fc03ee92aeeb5b6685903713ed729618740c27ffd176",
+      "total": 55,
+      "json_passed_including_expected_fail": 55,
+      "failed": 0,
+      "skipped": 0
+    },
+    "current-baseline-recheck.json": {
+      "sha256": "4c638fb4b99c2ced41b522bba58057bf6cfca1fe72472d343bf905943eaf12df",
+      "total": 16,
+      "json_passed_including_expected_fail": 13,
+      "failed": 3,
+      "skipped": 0
+    },
+    "worker-startup-recheck.json": {
+      "sha256": "63c58dd62eba26cb8b233063aa0172e811b45a6bb6f25adb2180118661aad408",
+      "total": 21,
+      "json_passed_including_expected_fail": 21,
+      "failed": 0,
+      "skipped": 0
+    },
+    "theme-hook-recheck.json": {
+      "sha256": "454da7ef315f39bbb18f65556862625374a887df0d9d35c27a9a5d94c5f34cd0",
+      "total": 3,
+      "json_passed_including_expected_fail": 2,
+      "failed": 1,
+      "skipped": 0
+    },
+    "upload-node-recheck.json": {
+      "sha256": "7020e5a9f40d89d9f3d4b4bfe373cfbeb3579a80da3ba8cb68574b0214d63c15",
+      "total": 3,
+      "json_passed_including_expected_fail": 2,
+      "failed": 1,
+      "skipped": 0
+    }
+  },
+  "post_commit_negative_controls": {
+    "activity_authority": {
+      "expected_failed": 1,
+      "actual_failed": 1,
+      "other_passed": 9,
+      "restored_passed": 10
+    },
+    "business_namespace": {
+      "expected_failed": 1,
+      "actual_failed": 1,
+      "other_passed": 8,
+      "restored_passed": 9
+    },
+    "http_retry": {
+      "expected_failed": 2,
+      "actual_failed": 2,
+      "other_passed": 7,
+      "restored_passed": 9
+    },
+    "followup_timing": {
+      "source_commit": "1548b3d6c7b2b5c6323202a2c793d066d0aed62a",
+      "records": [
+        {
+          "name": "timing-no-memory-negative",
+          "exit": 1,
+          "passed": 0,
+          "failed": 4,
+          "expected_failed": 4,
+          "report": "/Users/helson/code/AiNativeCrm-memory-28/tmp/memory-28/timing-no-memory-negative.json",
+          "log": "/Users/helson/code/AiNativeCrm-memory-28-timing-no-memory-negative.log"
+        },
+        {
+          "name": "timing-wrong-conversation-negative",
+          "exit": 1,
+          "passed": 3,
+          "failed": 1,
+          "expected_failed": 1,
+          "report": "/Users/helson/code/AiNativeCrm-memory-28/tmp/memory-28/timing-wrong-conversation-negative.json",
+          "log": "/Users/helson/code/AiNativeCrm-memory-28-timing-wrong-conversation-negative.log"
+        },
+        {
+          "name": "timing-swallowed-refresh-negative",
+          "exit": 1,
+          "passed": 2,
+          "failed": 2,
+          "expected_failed": 2,
+          "report": "/Users/helson/code/AiNativeCrm-memory-28/tmp/memory-28/timing-swallowed-refresh-negative.json",
+          "log": "/Users/helson/code/AiNativeCrm-memory-28-timing-swallowed-refresh-negative.log"
+        },
+        {
+          "name": "timing-restored",
+          "exit": 0,
+          "passed": 4,
+          "failed": 0,
+          "expected_failed": 0,
+          "report": "/Users/helson/code/AiNativeCrm-memory-28/tmp/memory-28/timing-restored.json",
+          "log": "/Users/helson/code/AiNativeCrm-memory-28-timing-restored.log"
+        }
+      ],
+      "source_restored": true
+    }
+  },
+  "limits": [
+    "Optional live Mem0/model services and natural-language correctness were not measured; actual SQL/Auth/Chromium and deterministic native-provider paths were measured.",
+    "Existing workflow-trigger assertions contradict upstream Actions pause; automation remains paused.",
+    "Release-guard, theme and upload fixture cases independently fail on origin; additional diagnostics remain non-green and are retained.",
+    "Account/deal inheritance and private personal notes are deferred as explicitly allowed by the issue."
+  ],
+  "unreconciled_feature_failures": [],
+  "changed_unit_file_coverage": {
+    "count": 21,
+    "all_present_in_original_or_current_delta_reports": true,
+    "files": [
+      "app/api/v1/ai/customer-memory/activity/route.test.ts",
+      "app/api/v1/ai/customer-memory/candidates/route.test.ts",
+      "app/api/v1/ai/customer-memory/lifecycle/route.test.ts",
+      "app/api/v1/ai/customer-memory/metrics/route.test.ts",
+      "app/api/v1/ai/customer-memory/usage/route.test.ts",
+      "app/api/v1/ai/integrations/route.test.ts",
+      "app/api/v1/ai/workbench/runs/[id]/evaluation/route.test.ts",
+      "components/ai/AgentServicePanels.test.tsx",
+      "components/ai/CustomerMemoryActivity.test.tsx",
+      "components/ai/CustomerMemoryCandidates.test.tsx",
+      "components/ai/CustomerMemoryMetrics.test.tsx",
+      "components/ai/CustomerMemoryPanel.test.tsx",
+      "components/ai/CustomerMemoryUsage.test.tsx",
+      "lib/agent-engine/agent/followup-memory.test.ts",
+      "lib/agent-runtime/pi/runtime.test.ts",
+      "lib/ai/customer-memory/cursor.test.ts",
+      "lib/ai/customer-memory/fingerprint.test.ts",
+      "lib/ai/customer-memory/policy.test.ts",
+      "lib/ai/customer-memory/recall.test.ts",
+      "lib/ai/customer-memory/source-access.test.ts",
+      "lib/ai/evals/memory-policy.test.ts"
+    ]
+  }
+}

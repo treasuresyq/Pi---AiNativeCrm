@@ -62,7 +62,9 @@ export async function auditMcpToolCall(input: AuditMcpToolCallInput): Promise<vo
     actor_type: ctx.actor.type,
     actor_id: ctx.actor.id,
     tool_name: toolName,
-    args: redactArgs(args),
+    args: toolName.startsWith("ontology_")
+      ? { question: "[redacted]", has_assumption: args.assumption !== undefined }
+      : redactArgs(args),
     duration_ms: durationMs,
     success,
   };

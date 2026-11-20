@@ -108,15 +108,21 @@ function messageToPi(message: RuntimeMessage, binding: AgentTurnInput["model"]):
       if (message.privateContinuation !== undefined) {
         const saved = message.privateContinuation;
         if (
-          saved === null || typeof saved !== "object" || Array.isArray(saved) ||
+          saved === null ||
+          typeof saved !== "object" ||
+          Array.isArray(saved) ||
           !Array.isArray((saved as AssistantMessage).content) ||
           typeof (saved as AssistantMessage).api !== "string" ||
           typeof (saved as AssistantMessage).provider !== "string" ||
           typeof (saved as AssistantMessage).model !== "string" ||
           typeof (saved as AssistantMessage).stopReason !== "string" ||
           typeof (saved as AssistantMessage).timestamp !== "number" ||
-          !((saved as AssistantMessage).usage && typeof (saved as AssistantMessage).usage === "object")
-        ) throw new Error("pi_assistant_continuation_state_invalid");
+          !(
+            (saved as AssistantMessage).usage &&
+            typeof (saved as AssistantMessage).usage === "object"
+          )
+        )
+          throw new Error("pi_assistant_continuation_state_invalid");
         return { ...(saved as AssistantMessage), role: "assistant" };
       }
       return {
@@ -210,7 +216,9 @@ function messageFromPi(message: AgentMessage): RuntimeMessage | null {
       timestamp: message.timestamp,
       ...(message.responseModel ? { responseModel: message.responseModel } : {}),
       ...(message.responseId ? { responseId: message.responseId } : {}),
-      ...(message.providerThinkingLevel ? { providerThinkingLevel: message.providerThinkingLevel } : {}),
+      ...(message.providerThinkingLevel
+        ? { providerThinkingLevel: message.providerThinkingLevel }
+        : {}),
       ...(message.endTurn !== undefined ? { endTurn: message.endTurn } : {}),
     },
   };
@@ -230,10 +238,13 @@ function runtimeEvent(event: AgentEvent): AgentRuntimeEvent {
     case "agent_end":
       return { type: event.type, data: { message_count: event.messages.length } };
     case "turn_end":
-      return { type: event.type, data: {
-        tool_result_count: event.toolResults.length,
-        stop_reason: event.message.role === "assistant" ? event.message.stopReason : null,
-      } };
+      return {
+        type: event.type,
+        data: {
+          tool_result_count: event.toolResults.length,
+          stop_reason: event.message.role === "assistant" ? event.message.stopReason : null,
+        },
+      };
     case "message_start":
     case "message_end":
       return { type: event.type, data: { role: event.message.role } };
@@ -242,7 +253,7 @@ function runtimeEvent(event: AgentEvent): AgentRuntimeEvent {
     case "tool_execution_start":
       return {
         type: event.type,
-        data: { tool_call_id: event.toolCallId, tool_name: event.toolName, args: event.args },
+        data: { tool_call_id: event.toolCallId, tool_name: event.toolName, args: event.toolName.startsWith("ontology_") ? { redacted: true } : event.args },
       };
     case "tool_execution_update":
       return {
@@ -250,7 +261,7 @@ function runtimeEvent(event: AgentEvent): AgentRuntimeEvent {
         data: {
           tool_call_id: event.toolCallId,
           tool_name: event.toolName,
-          partial_result: event.partialResult,
+          partial_result: event.toolName.startsWith("ontology_") ? "[redacted]" : event.partialResult,
         },
       };
     case "tool_execution_end":
@@ -278,10 +289,14 @@ export class PiAgentRuntime implements AgentRuntime {
     // request. The CRM contract promises cancellation at the runtime boundary,
     // so reject before constructing the loop as well.
     input.abortSignal?.throwIfAborted();
-    if (input.contextProbe && (
-      !input.contextProbe.id.trim() || input.contextProbe.id.length > 200 ||
-      !input.contextProbe.userText.trim() || input.contextProbe.userText.length > 20_000
-    )) throw new Error("pi_context_probe_invalid");
+    if (
+      input.contextProbe &&
+      (!input.contextProbe.id.trim() ||
+        input.contextProbe.id.length > 200 ||
+        !input.contextProbe.userText.trim() ||
+        input.contextProbe.userText.length > 20_000)
+    )
+      throw new Error("pi_context_probe_invalid");
     const [{ Agent }, { Type }, resolved] = await Promise.all([
       loadPiAgentCore(),
       loadPiAi(),
@@ -359,6 +374,8 @@ export class PiAgentRuntime implements AgentRuntime {
     const steeringSentToModel = new Set<string>();
     let contextProbeSeenInCurrentModelRequest = false;
     let contextProbeAcknowledged = false;
+    let dynamicProbesInRequest: string[] = [];
+    const dynamicProbesAcknowledged = new Set<string>();
 
     const tools: AgentTool[] = (input.tools ?? []).map((tool) => {
       const parameters = Type.Unsafe(tool.inputSchema);
@@ -436,15 +453,43 @@ export class PiAgentRuntime implements AgentRuntime {
         // constructing the provider request. The transcript alone is weaker:
         // a future context transform may remove the manager's instruction.
         const probe = input.contextProbe;
-        contextProbeSeenInCurrentModelRequest = probe !== undefined &&
-          modelMessages.some((message) => message.role === "user" &&
-            textOf(message.content).includes(probe.userText));
+        contextProbeSeenInCurrentModelRequest =
+          probe !== undefined &&
+          modelMessages.some(
+            (message) =>
+              message.role === "user" && textOf(message.content).includes(probe.userText),
+          );
+        const dynamicProbes =
+          input.contextProbes?.(
+            modelMessages.flatMap((message) => {
+              const converted = messageFromPi(message);
+              return converted === null ? [] : [converted];
+            }),
+          ) ?? [];
+        if (
+          dynamicProbes.length > 64 ||
+          dynamicProbes.some(
+            (p) =>
+              !p.id.trim() || p.id.length > 200 || !p.userText.trim() || p.userText.length > 20_000,
+          )
+        )
+          throw new Error("pi_context_probe_invalid");
+        dynamicProbesInRequest = dynamicProbes
+          .filter((p) =>
+            modelMessages.some(
+              (message) => message.role === "user" && textOf(message.content).includes(p.userText),
+            ),
+          )
+          .map((p) => p.id);
         // transformContext may remove a direction after Pi appended it to its
         // transcript. A message_end event alone is not proof it reached the LLM.
         for (const steeringId of steeringInModelContext) {
           const marker = steeringMarker(steeringId);
-          if (modelMessages.some((message) => message.role === "user" &&
-              textOf(message.content).includes(marker)))
+          if (
+            modelMessages.some(
+              (message) => message.role === "user" && textOf(message.content).includes(marker),
+            )
+          )
             steeringSentToModel.add(steeringId);
         }
         return modelMessages;
@@ -486,7 +531,7 @@ export class PiAgentRuntime implements AgentRuntime {
           ...(decision.terminate !== undefined ? { terminate: decision.terminate } : {}),
         };
       },
-      shouldStopAfterTurn: async ({ message }) => {
+      finishTurn: async ({ message }) => {
         turns += 1;
         if (message.role === "assistant") {
           usage = addUsage(usage, usageOf(message.usage));
@@ -496,7 +541,8 @@ export class PiAgentRuntime implements AgentRuntime {
           converted === null
             ? false
             : await input.shouldStopAfterTurn?.({ message: converted, turn: turns, usage });
-        return requested === true || (input.maxTurns !== undefined && turns >= input.maxTurns);
+        if (requested === true || (input.maxTurns !== undefined && turns >= input.maxTurns))
+          return { action: "end" };
       },
     });
 
@@ -507,10 +553,16 @@ export class PiAgentRuntime implements AgentRuntime {
         throw new Error("pi_steering_batch_invalid");
       const batchIdentity = new Map(queuedSteering);
       for (const item of pending) {
-        if (item === null || typeof item !== "object" ||
-            typeof item.id !== "string" || item.id.length > 200 || !item.id.trim() ||
-            typeof item.content !== "string" || item.content.length > 20_000 ||
-            !item.content.trim())
+        if (
+          item === null ||
+          typeof item !== "object" ||
+          typeof item.id !== "string" ||
+          item.id.length > 200 ||
+          !item.id.trim() ||
+          typeof item.content !== "string" ||
+          item.content.length > 20_000 ||
+          !item.content.trim()
+        )
           throw new Error("pi_steering_message_invalid");
         const previous = batchIdentity.get(item.id);
         if (previous !== undefined && previous !== item.content)
@@ -521,48 +573,91 @@ export class PiAgentRuntime implements AgentRuntime {
         const previous = queuedSteering.get(item.id);
         if (previous !== undefined) continue;
         queuedSteering.set(item.id, item.content);
-        const message = messageToPi({ role: "user",
-          content: `${steeringMarker(item.id)}\n${item.content}` }, input.model);
+        const message = messageToPi(
+          { role: "user", content: `${steeringMarker(item.id)}\n${item.content}` },
+          input.model,
+        );
         steeringMessages.set(message, item.id);
         agent.steer(message);
-        const queued: AgentRuntimeEvent = { type: "steering_queued", data: { steeringId: item.id } };
+        const queued: AgentRuntimeEvent = {
+          type: "steering_queued",
+          data: { steeringId: item.id },
+        };
         events.push(queued);
         await input.onEvent?.(queued);
       }
     };
 
-    agent.subscribe(async (event) => {
-      const mapped = runtimeEvent(event);
-      events.push(mapped);
-      await input.onEvent?.(mapped);
-      if (event.type === "message_end") {
-        const steeringId = steeringMessages.get(event.message);
-        if (steeringId !== undefined) steeringInModelContext.add(steeringId);
+    const pendingEventDeliveries: Promise<void>[] = [];
+    let eventDeliveryError: unknown;
+    agent.subscribe((event) => {
+      // Pi does not await subscribers. Capture this request before any async
+      // product callback can let the next request replace its context probes.
+      const probesForTurn = event.type === "turn_end" ? [...dynamicProbesInRequest] : [];
+      const directionForTurn = event.type === "turn_end" && contextProbeSeenInCurrentModelRequest;
+      if (event.type === "turn_end") {
+        dynamicProbesInRequest = [];
+        contextProbeSeenInCurrentModelRequest = false;
       }
-      if (event.type !== "turn_end" || event.message.role !== "assistant") return;
-      if (!contextProbeAcknowledged && contextProbeSeenInCurrentModelRequest && input.contextProbe &&
-          event.message.stopReason !== "error" && event.message.stopReason !== "aborted") {
-        const consumed: AgentRuntimeEvent = {
-          type: "model_context_consumed", data: { probeId: input.contextProbe.id },
-        };
-        events.push(consumed);
-        await input.onEvent?.(consumed);
-        contextProbeAcknowledged = true;
-      }
-      contextProbeSeenInCurrentModelRequest = false;
-      if (event.message.stopReason !== "error" && event.message.stopReason !== "aborted") {
-        for (const steeringId of steeringSentToModel) {
-          const consumed: AgentRuntimeEvent = { type: "steering_consumed", data: { steeringId } };
+      const deliver = async () => {
+        const mapped = runtimeEvent(event);
+        events.push(mapped);
+        await input.onEvent?.(mapped);
+        if (event.type === "message_end") {
+          const steeringId = steeringMessages.get(event.message);
+          if (steeringId !== undefined) steeringInModelContext.add(steeringId);
+        }
+        if (event.type !== "turn_end" || event.message.role !== "assistant") return;
+        if (
+          !contextProbeAcknowledged &&
+          directionForTurn &&
+          input.contextProbe &&
+          event.message.stopReason !== "error" &&
+          event.message.stopReason !== "aborted"
+        ) {
+          const consumed: AgentRuntimeEvent = {
+            type: "model_context_consumed",
+            data: { probeId: input.contextProbe.id },
+          };
           events.push(consumed);
+          contextProbeAcknowledged = true;
           await input.onEvent?.(consumed);
         }
-        steeringInModelContext.clear();
-        steeringSentToModel.clear();
-      }
-      if (!input.steering || event.message.stopReason === "error" ||
-          event.message.stopReason === "aborted" || input.abortSignal?.aborted ||
-          (input.maxTurns !== undefined && turns + 1 >= input.maxTurns)) return;
-      await queuePendingSteering();
+        if (event.message.stopReason !== "error" && event.message.stopReason !== "aborted") {
+          for (const probeId of probesForTurn) {
+            if (dynamicProbesAcknowledged.has(probeId)) continue;
+            const consumed: AgentRuntimeEvent = {
+              type: "model_context_consumed",
+              data: { probeId },
+            };
+            events.push(consumed);
+            dynamicProbesAcknowledged.add(probeId);
+            await input.onEvent?.(consumed);
+          }
+          for (const steeringId of steeringSentToModel) {
+            const consumed: AgentRuntimeEvent = { type: "steering_consumed", data: { steeringId } };
+            events.push(consumed);
+            await input.onEvent?.(consumed);
+          }
+          steeringInModelContext.clear();
+          steeringSentToModel.clear();
+        }
+        if (
+          !input.steering ||
+          event.message.stopReason === "error" ||
+          event.message.stopReason === "aborted" ||
+          input.abortSignal?.aborted ||
+          (input.maxTurns !== undefined && turns >= input.maxTurns)
+        )
+          return;
+        await queuePendingSteering();
+      };
+      pendingEventDeliveries.push(
+        deliver().catch((error) => {
+          eventDeliveryError ??= error;
+          agent.abort();
+        }),
+      );
     });
 
     const abort = () => agent.abort();
@@ -576,6 +671,29 @@ export class PiAgentRuntime implements AgentRuntime {
       await agent.prompt(input.prompt);
     } finally {
       input.abortSignal?.removeEventListener("abort", abort);
+      // Required product receipts/lease checks must settle before returning
+      // a successful run. Optional trace export keeps its separate deadline.
+      let deliveryTimer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          (async () => {
+            let delivered = 0;
+            while (delivered < pendingEventDeliveries.length) {
+              const batch = pendingEventDeliveries.slice(delivered);
+              delivered = pendingEventDeliveries.length;
+              await Promise.all(batch);
+            }
+          })(),
+          new Promise<never>((_, reject) => {
+            deliveryTimer = setTimeout(
+              () => reject(new Error("pi_runtime_event_delivery_timeout")),
+              10_000,
+            );
+          }),
+        ]);
+      } finally {
+        if (deliveryTimer) clearTimeout(deliveryTimer);
+      }
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         await Promise.race([
@@ -588,6 +706,8 @@ export class PiAgentRuntime implements AgentRuntime {
         if (timer) clearTimeout(timer);
       }
     }
+
+    if (eventDeliveryError) throw eventDeliveryError;
 
     const messages = agent.state.messages.flatMap((message) => {
       const converted = messageFromPi(message);

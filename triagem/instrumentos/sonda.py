@@ -146,7 +146,7 @@ class FonteGravada:
 
     def __init__(self, dados: dict):
         self.dados = dados
-        self.repo = dados.get("repo", "ydflow/pi-native-crm")
+        self.repo = dados.get("repo", "helsome/AiNativeCrm")
 
     def _get(self, chave: str) -> Any:
         if chave not in self.dados:

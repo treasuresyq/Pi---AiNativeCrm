@@ -36,6 +36,71 @@ function wait(ms: number): Promise<void> {
 }
 
 describe("PiAgentRuntime", () => {
+  it("acknowledges each request's own refreshed context despite delayed turn callbacks", async () => {
+    const { runtime } = runtimeWithFaux([
+      fauxAssistantMessage(fauxToolCall("lookup", {}), { stopReason: "toolUse" }),
+      fauxAssistantMessage("done"),
+    ]);
+    let request = 0;
+    const consumed: string[] = [];
+    const result = await runtime.run({
+      systemPrompt: "Use lookup then answer.",
+      prompt: "check",
+      model,
+      maxTurns: 3,
+      tools: [
+        {
+          name: "lookup",
+          description: "Read fixture",
+          inputSchema: { type: "object", properties: {} },
+          capability: "read",
+          execute: async () => ({ content: "fixture" }),
+        },
+      ],
+      transformContext: async (messages) => [
+        ...messages,
+        { role: "user", content: `fresh-context-${++request}` },
+      ],
+      contextProbes: (messages) => {
+        const latest = messages.filter((m) => m.role === "user").at(-1)!;
+        return [
+          {
+            id: `request-${request}`,
+            userText:
+              typeof latest.content === "string"
+                ? latest.content
+                : latest.content
+                    .filter((p) => p.type === "text")
+                    .map((p) => p.text)
+                    .join(""),
+          },
+        ];
+      },
+      onEvent: async (event) => {
+        if (event.type === "turn_end") await wait(40);
+        if (event.type === "model_context_consumed") consumed.push(String(event.data.probeId));
+      },
+    });
+    expect(request).toBe(2);
+    expect(consumed.sort()).toEqual(["request-1", "request-2"]);
+    expect(result.events.filter((e) => e.type === "model_context_consumed")).toHaveLength(2);
+  });
+  it("surfaces asynchronous product event failure before returning success", async () => {
+    const { runtime } = runtimeWithFaux([fauxAssistantMessage("done")]);
+    await expect(
+      runtime.run({
+        systemPrompt: "fixture",
+        prompt: "check",
+        model,
+        onEvent: async (event) => {
+          if (event.type === "turn_end") {
+            await wait(10);
+            throw new Error("product_receipt_failed");
+          }
+        },
+      }),
+    ).rejects.toThrow("product_receipt_failed");
+  });
   it.skipIf(!process.env.OPENCODE_ZEN_TEST_KEY)(
     "uses OpenCode Zen through Pi Agent Core with a CRM-tool fixture",
     async () => {
@@ -185,10 +250,15 @@ describe("PiAgentRuntime", () => {
     const direction = JSON.stringify("先按新的报价依据核对");
     const contextProbe = { id: "manager-direction:mission-1:2", userText: direction };
     const { runtime } = runtimeWithFaux([fauxAssistantMessage("已核对")]);
-    const result = await runtime.run({ systemPrompt: "CRM", prompt: `负责人方向：${direction}`,
-      model, contextProbe });
-    expect(result.events.filter((event) => event.type === "model_context_consumed"))
-      .toEqual([{ type: "model_context_consumed", data: { probeId: contextProbe.id } }]);
+    const result = await runtime.run({
+      systemPrompt: "CRM",
+      prompt: `负责人方向：${direction}`,
+      model,
+      contextProbe,
+    });
+    expect(result.events.filter((event) => event.type === "model_context_consumed")).toEqual([
+      { type: "model_context_consumed", data: { probeId: contextProbe.id } },
+    ]);
     expect(JSON.stringify(result.events)).not.toContain(direction);
   });
 
@@ -196,33 +266,86 @@ describe("PiAgentRuntime", () => {
     const direction = JSON.stringify("先按新的报价依据核对");
     const contextProbe = { id: "manager-direction:mission-1:2", userText: direction };
     const filtered = runtimeWithFaux([fauxAssistantMessage("没有新方向")]);
-    const filteredResult = await filtered.runtime.run({ systemPrompt: "CRM",
-      prompt: `负责人方向：${direction}`, model, contextProbe,
-      transformContext: (messages) => messages.filter((message) =>
-        message.role !== "user" || !(typeof message.content === "string"
-          ? message.content.includes(direction)
-          : message.content.some((part) => part.type === "text" && part.text.includes(direction)))),
+    const filteredResult = await filtered.runtime.run({
+      systemPrompt: "CRM",
+      prompt: `负责人方向：${direction}`,
+      model,
+      contextProbe,
+      transformContext: (messages) =>
+        messages.filter(
+          (message) =>
+            message.role !== "user" ||
+            !(typeof message.content === "string"
+              ? message.content.includes(direction)
+              : message.content.some(
+                  (part) => part.type === "text" && part.text.includes(direction),
+                )),
+        ),
     });
-    expect(filteredResult.events.some((event) => event.type === "model_context_consumed"))
-      .toBe(false);
+    expect(filteredResult.events.some((event) => event.type === "model_context_consumed")).toBe(
+      false,
+    );
     const failed = runtimeWithFaux([fauxAssistantMessage("", { stopReason: "error" })]);
-    const failedResult = await failed.runtime.run({ systemPrompt: "CRM",
-      prompt: `负责人方向：${direction}`, model, contextProbe });
-    expect(failedResult.events.some((event) => event.type === "model_context_consumed"))
-      .toBe(false);
+    const failedResult = await failed.runtime.run({
+      systemPrompt: "CRM",
+      prompt: `负责人方向：${direction}`,
+      model,
+      contextProbe,
+    });
+    expect(failedResult.events.some((event) => event.type === "model_context_consumed")).toBe(
+      false,
+    );
+  });
+
+  it("acknowledges dynamic probes only from the final request while retaining the independent direction probe", async () => {
+    const { runtime } = runtimeWithFaux([fauxAssistantMessage("Checked")]);
+    const result = await runtime.run({
+      systemPrompt: "CRM",
+      prompt: "direction and current-memory-marker",
+      model,
+      contextProbe: { id: "direction-proof", userText: "direction" },
+      contextProbes: () => [
+        { id: "memory-proof", userText: "current-memory-marker" },
+        { id: "missing-proof", userText: "removed-marker" },
+      ],
+    });
+    expect(
+      result.events.filter((e) => e.type === "model_context_consumed").map((e) => e.data.probeId),
+    ).toEqual(["direction-proof", "memory-proof"]);
+    expect(
+      JSON.stringify(result.events.filter((e) => e.type === "model_context_consumed")),
+    ).not.toContain("current-memory-marker");
+    const filtered = runtimeWithFaux([fauxAssistantMessage("No snapshot")]);
+    const absent = await filtered.runtime.run({
+      systemPrompt: "CRM",
+      prompt: "current-memory-marker",
+      model,
+      transformContext: () => [{ role: "user", content: "No memory here" }],
+      contextProbes: () => [{ id: "memory-proof", userText: "current-memory-marker" }],
+    });
+    expect(absent.events.filter((e) => e.type === "model_context_consumed")).toEqual([]);
   });
 
   it("keeps private reasoning out of the answer while preserving provider continuation", async () => {
     const { runtime } = runtimeWithFaux([
-      fauxAssistantMessage([
-        { type: "thinking", thinking: "private planning text", thinkingSignature: "signed-thought" },
-        { type: "text", text: "visible result" },
-      ], { responseId: "response-1" }),
+      fauxAssistantMessage(
+        [
+          {
+            type: "thinking",
+            thinking: "private planning text",
+            thinkingSignature: "signed-thought",
+          },
+          { type: "text", text: "visible result" },
+        ],
+        { responseId: "response-1" },
+      ),
       (context) => {
         const previous = context.messages.find((message) => message.role === "assistant");
-        expect(previous?.content).toEqual(expect.arrayContaining([
-          expect.objectContaining({ type: "thinking", thinkingSignature: "signed-thought" }),
-        ]));
+        expect(previous?.content).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ type: "thinking", thinkingSignature: "signed-thought" }),
+          ]),
+        );
         expect(previous).toEqual(expect.objectContaining({ responseId: "response-1" }));
         return fauxAssistantMessage("continued result");
       },
@@ -245,29 +368,52 @@ describe("PiAgentRuntime", () => {
     const observedPrompts: string[] = [];
     const observedTools: string[][] = [];
     const { runtime } = runtimeWithFaux([
-      fauxAssistantMessage([
-        { type: "thinking", thinking: "private planning", thinkingSignature: "signed-history" },
-        fauxToolCall("lookup_old", { id: "lead-1" }),
-      ], { stopReason: "toolUse", responseId: "old-response" }),
+      fauxAssistantMessage(
+        [
+          { type: "thinking", thinking: "private planning", thinkingSignature: "signed-history" },
+          fauxToolCall("lookup_old", { id: "lead-1" }),
+        ],
+        { stopReason: "toolUse", responseId: "old-response" },
+      ),
       fauxAssistantMessage("Prior verified finding."),
       (context) => {
         observedPrompts.push(getCurrentSystemPrompt(context.messages));
         observedTools.push(getCurrentTools(context.messages).map((tool) => tool.name));
         expect(getCurrentTools(context.messages)).toEqual([
-          expect.objectContaining({ name: "lookup_current", description: "Current allowed lookup",
-            parameters: { type: "object", properties: { confirmed: { type: "boolean" } }, required: ["confirmed"] } }),
+          expect.objectContaining({
+            name: "lookup_current",
+            description: "Current allowed lookup",
+            parameters: {
+              type: "object",
+              properties: { confirmed: { type: "boolean" } },
+              required: ["confirmed"],
+            },
+          }),
         ]);
-        const priorAssistant = context.messages.find((message) =>
-          message.role === "assistant" && message.responseId === "old-response");
-        expect(priorAssistant?.content).toEqual(expect.arrayContaining([
-          expect.objectContaining({ type: "thinking", thinkingSignature: "signed-history" }),
-        ]));
-        expect(context.messages).toEqual(expect.arrayContaining([
-          expect.objectContaining({ role: "user", content: [{ type: "text", text: "Original task" }] }),
-          expect.objectContaining({ role: "toolResult", toolName: "lookup_old",
-            content: [{ type: "text", text: "Persisted CRM fact" }] }),
-        ]));
-        return fauxAssistantMessage(fauxToolCall("lookup_current", { confirmed: true }), { stopReason: "toolUse" });
+        const priorAssistant = context.messages.find(
+          (message) => message.role === "assistant" && message.responseId === "old-response",
+        );
+        expect(priorAssistant?.content).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ type: "thinking", thinkingSignature: "signed-history" }),
+          ]),
+        );
+        expect(context.messages).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              role: "user",
+              content: [{ type: "text", text: "Original task" }],
+            }),
+            expect.objectContaining({
+              role: "toolResult",
+              toolName: "lookup_old",
+              content: [{ type: "text", text: "Persisted CRM fact" }],
+            }),
+          ]),
+        );
+        return fauxAssistantMessage(fauxToolCall("lookup_current", { confirmed: true }), {
+          stopReason: "toolUse",
+        });
       },
       (context) => {
         observedPrompts.push(getCurrentSystemPrompt(context.messages));
@@ -279,18 +425,42 @@ describe("PiAgentRuntime", () => {
       },
     ]);
     const first = await runtime.run({
-      systemPrompt: "OLD_MEMORY_v1", prompt: "Original task", model, maxTurns: 2,
-      tools: [{ name: "lookup_old", description: "Old allowed lookup", capability: "read",
-        inputSchema: { type: "object", properties: { id: { type: "string" } } },
-        execute: async () => ({ content: "Persisted CRM fact" }) }],
+      systemPrompt: "OLD_MEMORY_v1",
+      prompt: "Original task",
+      model,
+      maxTurns: 2,
+      tools: [
+        {
+          name: "lookup_old",
+          description: "Old allowed lookup",
+          capability: "read",
+          inputSchema: { type: "object", properties: { id: { type: "string" } } },
+          execute: async () => ({ content: "Persisted CRM fact" }),
+        },
+      ],
     });
     const restored = JSON.parse(JSON.stringify(first.messages));
     const before = JSON.stringify(restored);
     const execute = vi.fn(async () => ({ content: "Current CRM fact" }));
     const resumed = await runtime.run({
-      systemPrompt: "CURRENT_MEMORY_v2", messages: restored, prompt: "Continue", model, maxTurns: 2,
-      tools: [{ name: "lookup_current", description: "Current allowed lookup", capability: "read",
-        inputSchema: { type: "object", properties: { confirmed: { type: "boolean" } }, required: ["confirmed"] }, execute }],
+      systemPrompt: "CURRENT_MEMORY_v2",
+      messages: restored,
+      prompt: "Continue",
+      model,
+      maxTurns: 2,
+      tools: [
+        {
+          name: "lookup_current",
+          description: "Current allowed lookup",
+          capability: "read",
+          inputSchema: {
+            type: "object",
+            properties: { confirmed: { type: "boolean" } },
+            required: ["confirmed"],
+          },
+          execute,
+        },
+      ],
     });
     expect(observedPrompts).toEqual(["CURRENT_MEMORY_v2", "CURRENT_MEMORY_v2"]);
     expect(observedTools).toEqual([["lookup_current"]]);
@@ -298,21 +468,34 @@ describe("PiAgentRuntime", () => {
     expect(resumed.finalText).toBe("Current policy applied.");
     expect(resumed.messages[0]).toEqual({ role: "system", content: "CURRENT_MEMORY_v2" });
     expect(JSON.stringify(restored)).toBe(before);
-    const resumedAgain = await runtime.run({ systemPrompt: "CURRENT_MEMORY_v3",
-      messages: JSON.parse(JSON.stringify(resumed.messages)), prompt: "Continue again", model,
+    const resumedAgain = await runtime.run({
+      systemPrompt: "CURRENT_MEMORY_v3",
+      messages: JSON.parse(JSON.stringify(resumed.messages)),
+      prompt: "Continue again",
+      model,
     });
-    expect(observedPrompts).toEqual(["CURRENT_MEMORY_v2", "CURRENT_MEMORY_v2", "CURRENT_MEMORY_v3"]);
-    expect(resumedAgain.messages.filter((message) => message.role === "system" && message.content))
-      .toEqual([{ role: "system", content: "CURRENT_MEMORY_v3" }]);
+    expect(observedPrompts).toEqual([
+      "CURRENT_MEMORY_v2",
+      "CURRENT_MEMORY_v2",
+      "CURRENT_MEMORY_v3",
+    ]);
+    expect(
+      resumedAgain.messages.filter((message) => message.role === "system" && message.content),
+    ).toEqual([{ role: "system", content: "CURRENT_MEMORY_v3" }]);
   });
 
   it("replaces an old baseline with an empty explicit prompt and preserves supplemental system instructions", async () => {
     let observed = "not called";
-    const { runtime } = runtimeWithFaux([(context) => {
-      observed = getCurrentSystemPrompt(context.messages);
-      return fauxAssistantMessage("done");
-    }]);
-    await runtime.run({ systemPrompt: "", prompt: "continue", model,
+    const { runtime } = runtimeWithFaux([
+      (context) => {
+        observed = getCurrentSystemPrompt(context.messages);
+        return fauxAssistantMessage("done");
+      },
+    ]);
+    await runtime.run({
+      systemPrompt: "",
+      prompt: "continue",
+      model,
       messages: [
         { role: "system", content: "OLD_MEMORY_v1" },
         { role: "user", content: "Original task" },
@@ -325,11 +508,20 @@ describe("PiAgentRuntime", () => {
   it("keeps the current baseline on cold starts and histories without a leading system message", async () => {
     const observed: string[] = [];
     const { runtime } = runtimeWithFaux([
-      (context) => { observed.push(getCurrentSystemPrompt(context.messages)); return fauxAssistantMessage("cold"); },
-      (context) => { observed.push(getCurrentSystemPrompt(context.messages)); return fauxAssistantMessage("legacy"); },
+      (context) => {
+        observed.push(getCurrentSystemPrompt(context.messages));
+        return fauxAssistantMessage("cold");
+      },
+      (context) => {
+        observed.push(getCurrentSystemPrompt(context.messages));
+        return fauxAssistantMessage("legacy");
+      },
     ]);
     await runtime.run({ systemPrompt: "CURRENT_MEMORY_v2", prompt: "start", model });
-    await runtime.run({ systemPrompt: "CURRENT_MEMORY_v2", prompt: "continue", model,
+    await runtime.run({
+      systemPrompt: "CURRENT_MEMORY_v2",
+      prompt: "continue",
+      model,
       messages: [{ role: "user", content: "Legacy history" }],
     });
     expect(observed).toEqual(["CURRENT_MEMORY_v2", "CURRENT_MEMORY_v2"]);
@@ -382,81 +574,129 @@ describe("PiAgentRuntime", () => {
       },
     ]);
     const lookup = vi.fn(async () => ({ content: "旧交期：下周二" }));
-    const poll = vi.fn()
+    const poll = vi
+      .fn()
       .mockResolvedValueOnce([])
       .mockResolvedValue([{ id: "direction-1", content: instruction }]);
     const result = await runtime.run({
-      systemPrompt: "CRM", prompt: "核对交期", model, maxTurns: 4,
-      tools: [{ name: "lookup", description: "查商机", capability: "read",
-        inputSchema: { type: "object", properties: { id: { type: "string" } } },
-        execute: lookup }],
+      systemPrompt: "CRM",
+      prompt: "核对交期",
+      model,
+      maxTurns: 4,
+      tools: [
+        {
+          name: "lookup",
+          description: "查商机",
+          capability: "read",
+          inputSchema: { type: "object", properties: { id: { type: "string" } } },
+          execute: lookup,
+        },
+      ],
       steering: { poll },
     });
     expect(lookup).toHaveBeenCalledOnce();
     expect(poll).toHaveBeenCalledTimes(3);
     expect(result.finalText).toBe("已按新合同继续核对");
-    expect(result.messages.some((message) => message.role === "user" &&
-      JSON.stringify(message.content).includes(instruction))).toBe(true);
+    expect(
+      result.messages.some(
+        (message) =>
+          message.role === "user" && JSON.stringify(message.content).includes(instruction),
+      ),
+    ).toBe(true);
     const steeringEvents = result.events.filter((event) => event.type === "steering_queued");
-    expect(steeringEvents).toEqual([{ type: "steering_queued", data: { steeringId: "direction-1" } }]);
+    expect(steeringEvents).toEqual([
+      { type: "steering_queued", data: { steeringId: "direction-1" } },
+    ]);
     expect(JSON.stringify(steeringEvents)).not.toContain(instruction);
-    expect(result.events.filter((event) => event.type === "steering_consumed"))
-      .toEqual([{ type: "steering_consumed", data: { steeringId: "direction-1" } }]);
+    expect(result.events.filter((event) => event.type === "steering_consumed")).toEqual([
+      { type: "steering_consumed", data: { steeringId: "direction-1" } },
+    ]);
   });
 
   it("consumes a durable direction already pending before the first model request", async () => {
     const direction = "先核对负责人刚更新的合同";
-    const { runtime } = runtimeWithFaux([(context) => {
-      expect(JSON.stringify(context.messages)).toContain(direction);
-      return fauxAssistantMessage("已核对新合同");
-    }]);
-    const result = await runtime.run({ systemPrompt: "CRM", prompt: "核对商机", model,
-      maxTurns: 1, steering: { poll: async () => [{ id: "direction-before-start", content: direction }] } });
-    expect(result.events.filter((event) => event.type === "steering_consumed"))
-      .toEqual([{ type: "steering_consumed", data: { steeringId: "direction-before-start" } }]);
+    const { runtime } = runtimeWithFaux([
+      (context) => {
+        expect(JSON.stringify(context.messages)).toContain(direction);
+        return fauxAssistantMessage("已核对新合同");
+      },
+    ]);
+    const result = await runtime.run({
+      systemPrompt: "CRM",
+      prompt: "核对商机",
+      model,
+      maxTurns: 1,
+      steering: { poll: async () => [{ id: "direction-before-start", content: direction }] },
+    });
+    expect(result.events.filter((event) => event.type === "steering_consumed")).toEqual([
+      { type: "steering_consumed", data: { steeringId: "direction-before-start" } },
+    ]);
   });
 
   it("acknowledges only the direction included in a successful model turn", async () => {
     const first = "先核对合同版本一";
     const second = "再核对合同版本二";
-    const { runtime } = runtimeWithFaux([(context) => {
-      expect(JSON.stringify(context.messages)).toContain(first);
-      expect(JSON.stringify(context.messages)).not.toContain(second);
-      return fauxAssistantMessage("第一条方向已处理");
-    }]);
-    const result = await runtime.run({ systemPrompt: "CRM", prompt: "核对商机", model,
-      maxTurns: 1, steering: { poll: async () => [
-        { id: "direction-first", content: first },
-        { id: "direction-second", content: second },
-      ] } });
+    const { runtime } = runtimeWithFaux([
+      (context) => {
+        expect(JSON.stringify(context.messages)).toContain(first);
+        expect(JSON.stringify(context.messages)).not.toContain(second);
+        return fauxAssistantMessage("第一条方向已处理");
+      },
+    ]);
+    const result = await runtime.run({
+      systemPrompt: "CRM",
+      prompt: "核对商机",
+      model,
+      maxTurns: 1,
+      steering: {
+        poll: async () => [
+          { id: "direction-first", content: first },
+          { id: "direction-second", content: second },
+        ],
+      },
+    });
     expect(result.events.filter((event) => event.type === "steering_queued")).toHaveLength(2);
-    expect(result.events.filter((event) => event.type === "steering_consumed"))
-      .toEqual([{ type: "steering_consumed", data: { steeringId: "direction-first" } }]);
-    expect(result.messages.some((message) => message.role === "user" &&
-      JSON.stringify(message.content).includes(second))).toBe(false);
+    expect(result.events.filter((event) => event.type === "steering_consumed")).toEqual([
+      { type: "steering_consumed", data: { steeringId: "direction-first" } },
+    ]);
+    expect(
+      result.messages.some(
+        (message) => message.role === "user" && JSON.stringify(message.content).includes(second),
+      ),
+    ).toBe(false);
   });
 
   it("does not acknowledge a direction when the model turn fails", async () => {
-    const { runtime } = runtimeWithFaux([
-      fauxAssistantMessage("", { stopReason: "error" }),
-    ]);
-    const result = await runtime.run({ systemPrompt: "CRM", prompt: "核对商机", model,
-      steering: { poll: async () => [{ id: "direction-failed", content: "先核对新合同" }] } });
+    const { runtime } = runtimeWithFaux([fauxAssistantMessage("", { stopReason: "error" })]);
+    const result = await runtime.run({
+      systemPrompt: "CRM",
+      prompt: "核对商机",
+      model,
+      steering: { poll: async () => [{ id: "direction-failed", content: "先核对新合同" }] },
+    });
     expect(result.events.some((event) => event.type === "steering_queued")).toBe(true);
     expect(result.events.some((event) => event.type === "steering_consumed")).toBe(false);
   });
 
   it("does not acknowledge a direction removed by context transformation", async () => {
     const direction = "负责人要求核对新版交期";
-    const { runtime } = runtimeWithFaux([(context) => {
-      expect(JSON.stringify(context.messages)).not.toContain(direction);
-      return fauxAssistantMessage("缺少新版交期");
-    }]);
-    const result = await runtime.run({ systemPrompt: "CRM", prompt: "核对商机", model,
+    const { runtime } = runtimeWithFaux([
+      (context) => {
+        expect(JSON.stringify(context.messages)).not.toContain(direction);
+        return fauxAssistantMessage("缺少新版交期");
+      },
+    ]);
+    const result = await runtime.run({
+      systemPrompt: "CRM",
+      prompt: "核对商机",
+      model,
       maxTurns: 1,
       steering: { poll: async () => [{ id: "direction-filtered", content: direction }] },
-      transformContext: (messages) => messages.filter((message) =>
-        message.role !== "user" || !JSON.stringify(message.content).includes(direction)),
+      transformContext: (messages) =>
+        messages.filter(
+          (message) =>
+            message.role !== "user" || !JSON.stringify(message.content).includes(direction),
+        ),
     });
     expect(result.events.some((event) => event.type === "steering_queued")).toBe(true);
     expect(result.events.some((event) => event.type === "steering_consumed")).toBe(false);
@@ -465,8 +705,13 @@ describe("PiAgentRuntime", () => {
   it("leaves steering unconsumed when the hard turn limit has been reached", async () => {
     const { runtime } = runtimeWithFaux([fauxAssistantMessage("预算前的结论")]);
     const poll = vi.fn(async () => []);
-    const result = await runtime.run({ systemPrompt: "CRM", prompt: "先查商机", model,
-      maxTurns: 1, steering: { poll } });
+    const result = await runtime.run({
+      systemPrompt: "CRM",
+      prompt: "先查商机",
+      model,
+      maxTurns: 1,
+      steering: { poll },
+    });
     expect(poll).toHaveBeenCalledOnce();
     expect(result.finalText).toBe("预算前的结论");
     expect(result.events.some((event) => event.type === "steering_queued")).toBe(false);
@@ -474,18 +719,26 @@ describe("PiAgentRuntime", () => {
 
   it("does not mistake a queued steer for delivery when CRM stop policy ends the turn", async () => {
     const { runtime } = runtimeWithFaux([fauxAssistantMessage("旧结论")]);
-    const poll = vi.fn()
+    const poll = vi
+      .fn()
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: "direction-2", content: "改按新合同核对" }]);
-    const result = await runtime.run({ systemPrompt: "CRM", prompt: "核对", model,
+    const result = await runtime.run({
+      systemPrompt: "CRM",
+      prompt: "核对",
+      model,
       maxTurns: 3,
       steering: { poll },
       shouldStopAfterTurn: () => true,
     });
     expect(result.events.some((event) => event.type === "steering_queued")).toBe(true);
     expect(result.events.some((event) => event.type === "steering_consumed")).toBe(false);
-    expect(result.messages.some((message) => message.role === "user" &&
-      JSON.stringify(message.content).includes("改按新合同核对"))).toBe(false);
+    expect(
+      result.messages.some(
+        (message) =>
+          message.role === "user" && JSON.stringify(message.content).includes("改按新合同核对"),
+      ),
+    ).toBe(false);
     expect(result.finalText).toBe("旧结论");
   });
 

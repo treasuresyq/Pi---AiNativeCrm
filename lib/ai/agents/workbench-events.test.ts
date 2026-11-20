@@ -45,6 +45,48 @@ describe("CRM workbench event payloads", () => {
     })).toEqual({ inputTokens: "[REDACTED]", outputTokens: "[REDACTED]", costCents: null });
   });
 
+  it("keeps the parent governance decision and drops field values", () => {
+    expect(redactEventPayload("collaboration_conflict", {
+      code: "evidence_disagreement",
+      specialistKeys: ["customer_evidence", "opportunity_diagnosis"],
+      field: "lead:lead-1:stage_id",
+      governance: "ask",
+      writes: "stopped",
+      unresolved: true,
+      valueHash: "hash-a",
+      message: "private observation",
+    })).toEqual({
+      code: "evidence_disagreement",
+      specialistKeys: ["customer_evidence", "opportunity_diagnosis"],
+      field: "lead:lead-1:stage_id",
+      governance: "ask",
+      writes: "stopped",
+      unresolved: true,
+    });
+    expect(redactEventPayload("collaboration_completed", {
+      planKey: "opportunity_review_v1",
+      status: "complete",
+      completedSpecialists: 2,
+      failedSpecialists: 0,
+      toolCalls: 4,
+      conflictCount: 1,
+      governance: "stop_writes",
+      writes: "stopped",
+      unresolved: true,
+      excerpt: "private wiki paragraph",
+    })).toEqual({
+      planKey: "opportunity_review_v1",
+      status: "complete",
+      completedSpecialists: 2,
+      failedSpecialists: 0,
+      toolCalls: 4,
+      conflictCount: 1,
+      governance: "stop_writes",
+      writes: "stopped",
+      unresolved: true,
+    });
+  });
+
   it("records a direction consumption receipt without the instruction text", () => {
     expect(redactEventPayload("manager_direction_consumed", {
       directionId: "direction-1", directionRevision: 2,

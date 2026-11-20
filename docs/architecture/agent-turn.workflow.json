@@ -67,7 +67,14 @@
       "label": "Onde o desfecho aparece"
     }
   ],
-  "mainPath": ["inbound", "ingest", "eventlog", "turn", "gates", "send"],
+  "mainPath": [
+    "inbound",
+    "ingest",
+    "eventlog",
+    "turn",
+    "gates",
+    "send"
+  ],
   "nodes": [
     {
       "id": "inbound",
@@ -314,6 +321,24 @@
       "tag": "workbench_resume",
       "label": "Pi Workbench · retomada durável",
       "sublabel": "Após decisão humana ou escrita reversível, continua das mensagens Pi persistidas"
+    },
+    {
+      "id": "customer_memory_extract",
+      "lane": "app",
+      "col": 6,
+      "type": "backend",
+      "label": "Memory candidate extraction",
+      "tag": "customer_memory_extract",
+      "sublabel": "close/checkpoint/task events; exact evidence; L2 only"
+    },
+    {
+      "id": "customer_memory_consolidate",
+      "lane": "app",
+      "col": 7,
+      "type": "backend",
+      "label": "Nightly memory maintenance",
+      "tag": "customer_memory_consolidate",
+      "sublabel": "dedupe candidates, expiry and review; preserve locks"
     }
   ],
   "edges": [
@@ -417,7 +442,10 @@
       "from": "skillsscreen",
       "to": "skillcatalog",
       "label": "importa .zip / instala do catálogo",
-      "labelAt": [154, 903]
+      "labelAt": [
+        154,
+        903
+      ]
     },
     {
       "id": "skillcatalog-turn",
@@ -497,7 +525,10 @@
       "fromSide": "top",
       "toSide": "top",
       "route": "up-channel",
-      "labelAt": [400, 1196]
+      "labelAt": [
+        400,
+        1196
+      ]
     },
     {
       "id": "stagesscreen-mappingscreen",
@@ -517,7 +548,10 @@
       "route": "bottom-channel",
       "labelDy": 0,
       "channelY": 1276,
-      "labelAt": [190, 1288]
+      "labelAt": [
+        190,
+        1288
+      ]
     },
     {
       "id": "mappingscreen-stagehint",
@@ -599,7 +633,10 @@
       "fromSide": "right",
       "toSide": "right",
       "route": "outside-right",
-      "labelAt": [692, 1399]
+      "labelAt": [
+        692,
+        1399
+      ]
     },
     {
       "id": "handoff-operador",
@@ -610,7 +647,10 @@
       "fromSide": "right",
       "toSide": "right",
       "route": "outside-right",
-      "labelAt": [692, 1531]
+      "labelAt": [
+        692,
+        1531
+      ]
     },
     {
       "id": "operador-inbox",
@@ -620,7 +660,10 @@
       "fromSide": "bottom",
       "toSide": "top",
       "route": "drop",
-      "labelAt": [470, 1531]
+      "labelAt": [
+        470,
+        1531
+      ]
     },
     {
       "id": "turn-inbox",
@@ -631,7 +674,10 @@
       "fromSide": "right",
       "toSide": "right",
       "route": "outside-right",
-      "labelAt": [692, 1565]
+      "labelAt": [
+        692,
+        1565
+      ]
     },
     {
       "id": "meet-existing-gates",
@@ -723,6 +769,30 @@
       "to": "turn",
       "label": "observação aprovada volta ao loop sem reiniciar a tarefa",
       "route": "drop"
+    },
+    {
+      "id": "memory-event-extract",
+      "from": "eventlog",
+      "to": "customer_memory_extract",
+      "label": "durable scoped event"
+    },
+    {
+      "id": "memory-extract-review",
+      "from": "customer_memory_extract",
+      "to": "memoryscreen",
+      "label": "human confirms evidence-backed candidates"
+    },
+    {
+      "id": "memory-event-maintain",
+      "from": "eventlog",
+      "to": "customer_memory_consolidate",
+      "label": "next local nightly job"
+    },
+    {
+      "id": "memory-maintain-review",
+      "from": "customer_memory_consolidate",
+      "to": "memoryscreen",
+      "label": "expiry, conflict and review tasks"
     }
   ],
   "cards": [

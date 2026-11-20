@@ -12,7 +12,7 @@ depends_on:
 version: 0.1
 status: em revisão
 date: 2026-04-28
-owner: ydflow
+owner: helson
 ---
 
 # Spec 09 — Frontend ↔ Backend Integration Contract

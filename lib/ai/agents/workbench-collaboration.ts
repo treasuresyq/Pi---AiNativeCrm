@@ -408,6 +408,9 @@ class PiWorkbenchSpecialistExecutor implements AgentSpecialistExecutor {
           llmCfg: this.deps.llmCfg,
           log: this.deps.log,
           runtime: this.deps.runtime,
+          ...(this.root.scope.contactId ? { customerMemory: { contactId: this.root.scope.contactId,
+            conversationId: this.root.scope.conversationId, leadId: this.root.scope.leadId,
+            task: this.root.task } } : {}),
         },
         {
           tenantId: this.root.organizationId,

@@ -128,7 +128,7 @@ describe("provider configuration API boundaries", () => {
       ).status,
     ).toBe(403);
   });
-  it("customer-memory mutations require manager and explicit fact confirmation", async () => {
+  it("requires explicit confirmation and the agent guard before owner verification; cleanup stays manager-only", async () => {
     expect(
       (
         await saveMemory(
@@ -156,7 +156,7 @@ describe("provider configuration API boundaries", () => {
         )
       ).status,
     ).toBe(403);
-    expect(mock.role).toHaveBeenCalledWith("manager", expect.anything());
+    expect(mock.role).toHaveBeenCalledWith("agent", expect.anything());
     mock.role.mockResolvedValueOnce({
       ok: false,
       response: new Response("denied", { status: 403 }),

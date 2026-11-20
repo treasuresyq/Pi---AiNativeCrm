@@ -43,6 +43,8 @@ ser fonte sem ninguém decidir isso.
 > `ls docs/architecture/*.json` antes de confiar na lista.
 
 
+O mapa `ontology-lite.architecture.json` registra o contrato #32 e os consumidores #33/#34 planejados; não indica integração existente.
+
 ### Aviso: só o `agent-turn.workflow.json` é renderizável hoje
 
 Medido com archify 2.11.0: os `*.architecture.json` deste diretório **não validam em nenhum

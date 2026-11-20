@@ -8,14 +8,23 @@ import type { MeetingBookingContext } from "@/lib/agenda/meet-delivery";
  */
 import type { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 
 import type { Actor } from "@/lib/api/handlers/types";
 import type { Role } from "@/lib/auth/types";
 
 export interface McpContext {
+  /** Cancellation propagated from the authenticated MCP request. */
+  signal?: AbortSignal;
   /** Somente o runtime in-process fornece o job original, nunca o cliente MCP. */
   meetingBooking?: MeetingBookingContext;
+  /** Trusted server runtime binding, never supplied by a tool caller. */
+  ontologyRuntime?: {
+    versionId: string;
+    runId: string;
+    pipelineIds: readonly string[] | null;
+    workbenchRunId?: string;
+    signal?: AbortSignal;
+  };
   organizationId: string;
   role: Role;
   actor: Actor;
@@ -32,17 +41,10 @@ export interface McpContext {
 
 export type McpToolCategory = "read" | "write" | "handoff";
 
-/** Dicas de comportamento, nunca substitutos dos guards de role/scope/tenant. */
-export type McpToolAnnotations = Required<
-  Pick<ToolAnnotations, "readOnlyHint" | "destructiveHint" | "idempotentHint" | "openWorldHint">
->;
-
 export interface McpToolDefinition<TInput extends z.ZodRawShape = z.ZodRawShape> {
   name: string;
   description: string;
   inputSchema: TInput;
-  /** Declaradas por handler após revisar seus efeitos, inclusive os diferidos. */
-  annotations: McpToolAnnotations;
   category: McpToolCategory;
   /** Role mínima para invocar. Read default agent; Write default manager. */
   requiresRole: Role;

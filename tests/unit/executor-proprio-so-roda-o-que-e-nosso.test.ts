@@ -19,7 +19,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const GUARDA = "infra/executor-proprio/so-o-que-e-nosso.sh";
-const REPO = "ydflow/pi-native-crm";
+const REPO = "helsome/AiNativeCrm";
 
 function guarda(evento: string, payload: unknown, repo = REPO): number {
   const dir = mkdtempSync(join(tmpdir(), "guarda-"));

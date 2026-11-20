@@ -3,7 +3,6 @@
   'use strict';
   const ref = '12749abaa8aa98f7bee988f69fb4aa23e9d5ff29';
   const historicalRef = 'fc80b14dc88406ab6f5e6ec3ed9ca61d632c0674';
-  const source = path => 'https://github.com/ydflow/pi-native-crm/blob/' + ref + '/' + path;
   const fixtures = {
     schemaVersion: 1, sourceRef: ref, scenarioId: 'starbridge-policy-v1',
     tenantId: 'demo-org-starbridge',
@@ -26,12 +25,11 @@
       { name: 'Durable runtime', path: 'tests/unit/workbench-durable-queue.test.ts', boundary: '生产：数据库任务队列、checkpoint、恢复；这里：localStorage 恢复，不是服务端持久队列或进程崩溃恢复测试。' },
       { name: 'Eval', path: 'lib/ai/evals/evaluate-run.ts', boundary: '生产：版本化 profile、确定性规则及可选语义 Judge；这里：显式本地断言，不能代替模型质量评估。' },
       { name: 'Golden corpus', path: 'tests/agent-runtime/fixtures/workbench-eval-golden.ts', boundary: '仓库包含真实运行派生的缩减 fixture 和合成回归 fixture。此页不把重建的事件当作原始完整 trace。' }
-    ].map(x => ({ ...x, url: source(x.path) })),
+    ],
     historical: {
       kind: 'committed_report_excerpt', capturedDate: '2026-09-28', provider: 'opencode', model: 'space-bunny-free',
       reportTitle: 'DuoAgent Runtime 与 Eval 真实模型验收', sourcePath: 'docs/testing/multi-agent-eval-real-run-2026-09-28.md',
-      sourceUrl: 'https://github.com/ydflow/pi-native-crm/blob/' + historicalRef + '/docs/testing/multi-agent-eval-real-run-2026-09-28.md',
-      reportRunId: 'b030b8d5-ba15-4168-8407-1ad886ce1743', mode: 'inspect', sourceRef: historicalRef,
+      reportRunId: '已隐去 · 公开页不显示内部运行标识', mode: 'inspect', sourceRef: historicalRef,
       limitations: '仓库已提交验收报告的最小摘录；本次未重新调用模型、查询原数据库或验证报告所述运行。没有完整原始事件 JSON；不补造逐条工具输入/输出，不展示客户正文或内部推理。',
       specialists: [
         { name: 'customer_evidence', status: 'completed', toolCalls: 3, claims: 29, tools: ['crm_get_contact','crm_list_conversations','crm_get_conversation_history'], outputSummary: '报告记载：历史消息接口为空，客户沟通证据存在缺口。' },

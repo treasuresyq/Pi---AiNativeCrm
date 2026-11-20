@@ -11,6 +11,7 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
 import { loadAgentVersionConfig } from "@/lib/agent-engine/agent/agent-config";
 import { requestTurnDeps } from "@/lib/agent-engine/agent/request-deps";
 import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
+import { loadMemoryEvaluationRecalls } from "@/lib/ai/customer-memory/evaluation";
 import { BUILTIN_AGENTS } from "@/lib/ai/agents/builtins";
 import { parseRuntimeMessages } from "@/lib/ai/agents/workbench-state";
 import type { AgentEvalReport, AgentEvalRunInput } from "@/lib/ai/evals/contracts";
@@ -63,7 +64,9 @@ async function loadEvaluationMaterial(
 ): Promise<EvaluationMaterial> {
   const { data: run, error: runError } = await admin
     .from("ai_workbench_runs")
-    .select("id, agent_id, task, mode, status, final_text, result_document, created_at, started_at, updated_at, runtime_state")
+    .select(
+      "id, agent_id, task, mode, scope, status, final_text, result_document, created_at, started_at, updated_at, runtime_state",
+    )
     .eq("organization_id", organizationId)
     .eq("id", runId)
     .maybeSingle();
@@ -105,8 +108,13 @@ async function loadEvaluationMaterial(
 
   if (materials.some((material) => material.error))
     throw new EvaluationMaterialError("read_failed", "评测材料读取不完整，无法给出可信评分。");
-  const [{ data: agent }, { data: events }, { data: proposals }, { data: state },
-    { data: collaborationRuns }] = materials;
+  const [
+    { data: agent },
+    { data: events },
+    { data: proposals },
+    { data: state },
+    { data: collaborationRuns },
+  ] = materials;
 
   const definition =
     agent?.origin === "builtin"
@@ -128,17 +136,26 @@ async function loadEvaluationMaterial(
           .in("run_id", childIds)
           .order("created_at", { ascending: true }),
       ])
-    : [{ data: [], error: null }, { data: [], error: null }];
+    : [
+        { data: [], error: null },
+        { data: [], error: null },
+      ];
   if (childMaterials.some((material) => material.error))
     throw new EvaluationMaterialError("read_failed", "专家评测材料读取不完整。");
   const [{ data: childStates }, { data: childEvents }] = childMaterials;
   if ((childStates ?? []).some((child) => !parseRuntimeMessages(child.messages)))
     throw new EvaluationMaterialError("state_corrupt", "专家运行状态无法安全解析。");
   if (!state && ["completed", "partial"].includes(run.status))
-    throw new EvaluationMaterialError("state_corrupt", "已结束运行缺少持久化模型观察，无法给出可信评分。");
+    throw new EvaluationMaterialError(
+      "state_corrupt",
+      "已结束运行缺少持久化模型观察，无法给出可信评分。",
+    );
   const childStateIds = new Set((childStates ?? []).map((child) => child.run_id));
-  if ((collaborationRuns ?? []).some((child) =>
-    ["completed", "partial"].includes(child.status) && !childStateIds.has(child.id)))
+  if (
+    (collaborationRuns ?? []).some(
+      (child) => ["completed", "partial"].includes(child.status) && !childStateIds.has(child.id),
+    )
+  )
     throw new EvaluationMaterialError("state_corrupt", "已结束专家运行缺少持久化模型观察。");
   const parsedRootMessages = parseRuntimeMessages(state?.messages);
   if (state && !parsedRootMessages)
@@ -147,35 +164,84 @@ async function loadEvaluationMaterial(
     ...(parsedRootMessages ?? []),
     ...(childStates ?? []).flatMap((child) => parseRuntimeMessages(child.messages) ?? []),
   ];
-  const contactIds = [...new Set(runtimeMessages.flatMap(message => {
-    if (message.role !== "tool" || message.toolName !== "crm_get_contact" || message.isError) return [];
-    try {
-      const text = typeof message.content === "string" ? message.content : message.content
-        .filter(part => part.type === "text").map(part => part.text).join("\n");
-      const value = message.details ?? JSON.parse(text);
-      return typeof value?.id === "string" && UUID_RX.test(value.id) ? [value.id as string] : [];
-    } catch { return []; }
-  }))];
+  const scopedContact = z
+    .object({ contactId: z.uuid().nullish() })
+    .passthrough()
+    .safeParse(run.scope);
+  const contactIds = [
+    ...new Set([
+      ...(scopedContact.success && scopedContact.data.contactId
+        ? [scopedContact.data.contactId]
+        : []),
+      ...runtimeMessages.flatMap((message) => {
+        if (message.role !== "tool" || message.toolName !== "crm_get_contact" || message.isError)
+          return [];
+        try {
+          const text =
+            typeof message.content === "string"
+              ? message.content
+              : message.content
+                  .filter((part) => part.type === "text")
+                  .map((part) => part.text)
+                  .join("\n");
+          const value = message.details ?? JSON.parse(text);
+          return typeof value?.id === "string" && UUID_RX.test(value.id)
+            ? [value.id as string]
+            : [];
+        } catch {
+          return [];
+        }
+      }),
+    ]),
+  ];
   if (contactIds.length > 50)
     throw new EvaluationMaterialError("read_failed", "记忆覆盖校验超出安全读取上限。");
   let confirmedMemoryExpectations: AgentEvalRunInput["confirmedMemoryExpectations"] = [];
+  let memoryEvaluationRecalls: AgentEvalRunInput["memoryEvaluationRecalls"] = [];
+  if (contactIds.length) {
+    try {
+      memoryEvaluationRecalls = await loadMemoryEvaluationRecalls(
+        getRequestPool(),
+        organizationId,
+        [run.id, ...(collaborationRuns ?? []).map((child) => child.id)],
+      );
+    } catch {
+      throw new EvaluationMaterialError("read_failed", "无法独立核对记忆读取回执。");
+    }
+  }
   if (contactIds.length) {
     // Only facts present throughout this run count. Later additions/deletions
     // cannot manufacture a historical failure. Current privacy always wins.
-    const contacts = await admin.from("contacts").select("id")
-      .eq("organization_id", organizationId).in("id", contactIds)
-      .eq("is_anonymized", false).is("is_merged_into", null);
-    if (contacts.error) throw new EvaluationMaterialError("read_failed", "无法独立校验客户记忆作用域。");
-    const allowed = (contacts.data ?? []).map(contact => contact.id);
+    const contacts = await admin
+      .from("contacts")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .in("id", contactIds)
+      .eq("is_anonymized", false)
+      .is("is_merged_into", null);
+    if (contacts.error)
+      throw new EvaluationMaterialError("read_failed", "无法独立校验客户记忆作用域。");
+    const allowed = (contacts.data ?? [])
+      .map((contact) => contact.id)
+      .filter(
+        (contactId) => !memoryEvaluationRecalls.some((receipt) => receipt.contact_id === contactId),
+      );
     if (allowed.length) {
-      const memories = await admin.from("ai_customer_memories").select("id, contact_id")
-        .eq("organization_id", organizationId).in("contact_id", allowed)
+      const memories = await admin
+        .from("ai_customer_memories")
+        .select("id, contact_id")
+        .eq("organization_id", organizationId)
+        .in("contact_id", allowed)
         .lte("created_at", run.started_at ?? run.created_at)
-        .or(`deleted_at.is.null,deleted_at.gt.${run.updated_at}`).limit(1001);
+        .or(`deleted_at.is.null,deleted_at.gt.${run.updated_at}`)
+        .limit(1001);
       if (memories.error || (memories.data?.length ?? 0) > 1000)
         throw new EvaluationMaterialError("read_failed", "确认记忆存在性读取不完整。");
-      confirmedMemoryExpectations = allowed.map(contactId => ({ contactId,
-        memoryIds: (memories.data ?? []).filter(memory => memory.contact_id === contactId).map(memory => memory.id),
+      confirmedMemoryExpectations = allowed.map((contactId) => ({
+        contactId,
+        memoryIds: (memories.data ?? [])
+          .filter((memory) => memory.contact_id === contactId)
+          .map((memory) => memory.id),
         asOf: run.started_at ?? run.created_at,
       }));
     }
@@ -218,6 +284,7 @@ async function loadEvaluationMaterial(
     })),
     runtimeMessages,
     confirmedMemoryExpectations,
+    memoryEvaluationRecalls,
     collaborationRuns: (collaborationRuns ?? []).map((child) => ({
       id: child.id,
       specialistKey: child.specialist_key,
@@ -242,6 +309,7 @@ async function loadEvaluationMaterial(
         collaborationRuns,
         runtimeMessages,
         confirmedMemoryExpectations,
+        memoryEvaluationRecalls,
         profile: { key: profile.key, revision: profile.revision },
       }),
     )
@@ -313,23 +381,38 @@ export async function GET(_req: NextRequest, ctx: RouteCtx): Promise<Response> {
   }
   const report = await runAgentEvaluation({ run: material.input, profile: material.profile });
   const inputFingerprint = evaluationFingerprint(material.baseFingerprint, "deterministic");
-  const saved = await admin.from("ai_agent_eval_reports").select("report, input_fingerprint")
-    .eq("organization_id", authz.org.orgId).eq("run_id", id)
-    .eq("profile_key", material.profile.key).eq("profile_revision", material.profile.revision)
-    .order("created_at", { ascending: false }).limit(20);
-  if (saved.error) return fail("evaluation_read_failed", "无法读取已保存的语义评测。", 503, { requestId });
+  const saved = await admin
+    .from("ai_agent_eval_reports")
+    .select("report, input_fingerprint")
+    .eq("organization_id", authz.org.orgId)
+    .eq("run_id", id)
+    .eq("profile_key", material.profile.key)
+    .eq("profile_revision", material.profile.revision)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (saved.error)
+    return fail("evaluation_read_failed", "无法读取已保存的语义评测。", 503, { requestId });
   const savedSemanticEvaluation = matchingSavedSemanticReview(saved.data ?? [], {
-    runId: id, profileKey: material.profile.key, profileRevision: material.profile.revision,
-    baseFingerprint: material.baseFingerprint, rubricRevision: WORKBENCH_SEMANTIC_RUBRIC_REVISION,
+    runId: id,
+    profileKey: material.profile.key,
+    profileRevision: material.profile.revision,
+    baseFingerprint: material.baseFingerprint,
+    rubricRevision: WORKBENCH_SEMANTIC_RUBRIC_REVISION,
   });
-  return ok({ ...report, inputFingerprint, savedSemanticEvaluation: savedSemanticEvaluation ?? null }, { requestId });
+  return ok(
+    { ...report, inputFingerprint, savedSemanticEvaluation: savedSemanticEvaluation ?? null },
+    { requestId },
+  );
 }
 
 /** Explicit, cost-bearing semantic review using the run's published model binding. */
 export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   const requestId = randomUUID();
-  const mode = z.enum(["semantic", "deterministic_export"]).safeParse(new URL(req.url).searchParams.get("mode") ?? "semantic");
-  if (!mode.success) return fail("invalid_request", "Unknown evaluation operation.", 400, { requestId });
+  const mode = z
+    .enum(["semantic", "deterministic_export"])
+    .safeParse(new URL(req.url).searchParams.get("mode") ?? "semantic");
+  if (!mode.success)
+    return fail("invalid_request", "Unknown evaluation operation.", 400, { requestId });
   const { id } = await ctx.params;
   if (!UUID_RX.test(id)) return fail("invalid_request", "run id 无效。", 400, { requestId });
   const authz = await requireRole("manager", { requestId, resource: "ai_workbench" });
@@ -351,10 +434,21 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
       return fail("evaluation_persist_failed", "无法保存确定性评测。", 500, { requestId });
     try {
       await projectLangfuseEvaluation(getRequestPool(), authz.org.orgId, report, fingerprint);
-    } catch { return fail("internal_error", "评测已保存，但投递排队失败。可安全重试。", 503, { requestId }); }
-    await audit({ action: "ai.integration_export_requested", actorUserId: authz.user.id, organizationId: authz.org.orgId,
-      resourceType: "ai_workbench_runs", resourceId: id, requestId });
-    return ok({ ...report, inputFingerprint: fingerprint, projection: "queued_if_enabled" }, { requestId });
+    } catch {
+      return fail("internal_error", "评测已保存，但投递排队失败。可安全重试。", 503, { requestId });
+    }
+    await audit({
+      action: "ai.integration_export_requested",
+      actorUserId: authz.user.id,
+      organizationId: authz.org.orgId,
+      resourceType: "ai_workbench_runs",
+      resourceId: id,
+      requestId,
+    });
+    return ok(
+      { ...report, inputFingerprint: fingerprint, projection: "queued_if_enabled" },
+      { requestId },
+    );
   }
   if (!material.versionId)
     return fail(
@@ -391,7 +485,12 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     const cachedReport = cached.report as unknown as AgentEvalReport;
     if (cachedReport.semanticJudge?.status === "completed") {
       if (integrationBinding(authz.org.orgId, "langfuse"))
-        await projectLangfuseEvaluation(pool, authz.org.orgId, cachedReport, inputFingerprint).catch(() => {});
+        await projectLangfuseEvaluation(
+          pool,
+          authz.org.orgId,
+          cachedReport,
+          inputFingerprint,
+        ).catch(() => {});
       return ok({ ...cachedReport, inputFingerprint, cached: true }, { requestId });
     }
   }
@@ -424,7 +523,9 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
       requestId,
     });
   if (integrationBinding(authz.org.orgId, "langfuse")) {
-    await projectLangfuseEvaluation(pool, authz.org.orgId, report, persistedFingerprint).catch(() => {});
+    await projectLangfuseEvaluation(pool, authz.org.orgId, report, persistedFingerprint).catch(
+      () => {},
+    );
   }
   return ok({ ...report, inputFingerprint: persistedFingerprint, cached: false }, { requestId });
 }

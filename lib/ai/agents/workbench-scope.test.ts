@@ -70,4 +70,13 @@ describe("resolveWorkbenchScope", () => {
       contact: { name: "林晓梅", phone: "+8613800000000" },
     });
   });
+  it("keeps an explicitly selected opportunity without a contact", async () => {
+    const { admin } = adminFor({
+      crm_leads: { id: LEAD_ID, organization_id: ORG_ID, contact_id: null, pipeline_id: PIPELINE_ID },
+      crm_pipelines: { id: PIPELINE_ID, organization_id: ORG_ID, is_archived: false },
+    });
+    const scope = await resolveWorkbenchScope(admin as never, ORG_ID, { leadId: LEAD_ID });
+    expect(scope).toMatchObject({ leadId: LEAD_ID, contactId: null, pipelineId: PIPELINE_ID });
+  });
+
 });

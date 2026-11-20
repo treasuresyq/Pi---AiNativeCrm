@@ -9,6 +9,12 @@ import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
 
+import {
+  cabecalhosOpenCode,
+  endpointOpenCode,
+  OPENCODE_ZEN_ENDPOINT,
+} from "@/lib/ai/opencode-endpoint";
+
 import { allowlistedFetch, buildAllowlist } from "../egress";
 
 /**
@@ -50,7 +56,7 @@ export const OPENROUTER_ENDPOINT =
  * também aceita `/v1`); o `@ai-sdk/openai` acrescenta `/chat/completions`.
  */
 export const DEEPSEEK_ENDPOINT = "https://api.deepseek.com";
-export const OPENCODE_ZEN_ENDPOINT = "https://opencode.ai/zen/v1";
+export { OPENCODE_ZEN_ENDPOINT };
 
 /**
  * Cabeçalhos OPCIONAIS de atribuição da OpenRouter.
@@ -184,12 +190,15 @@ export function createDefaultRegistry(opts?: {
         fetch: contain(endpoint),
       })(modelId);
     },
-    opencode: (apiKey, modelId) =>
-      createOpenAI({
+    opencode: (apiKey, modelId) => {
+      const endpoint = endpointOpenCode(process.env.OPENCODE_BASE_URL);
+      return createOpenAI({
         apiKey,
-        baseURL: OPENCODE_ZEN_ENDPOINT,
-        fetch: contain(OPENCODE_ZEN_ENDPOINT),
-      })(modelId),
+        baseURL: endpoint,
+        headers: cabecalhosOpenCode(process.env.OPENCODE_SESSION),
+        fetch: contain(endpoint),
+      })(modelId);
+    },
     /**
      * DeepSeek é OpenAI-compatível e aceita um `base_url` próprio pela mesma
      * razão da OpenRouter: o painel de provedores oferece apontar para um

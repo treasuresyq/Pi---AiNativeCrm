@@ -3,6 +3,7 @@ import { workbenchToolEffect } from "@/lib/ai/agents/tool-effects";
 import { inspectProductFinalAnswer } from "@/lib/ai/agents/final-answer";
 import { workbenchResultDocumentSchema } from "@/lib/ai/agents/workbench-result-submission";
 import { auditWorkbenchEvidenceProvenance } from "@/lib/ai/evals/evidence-provenance";
+import { evaluateMemoryRecallPolicy, memoryPolicyFailure } from "./memory-policy";
 import type {
   AgentEvalDimensionKey,
   AgentEvalDimensionResult,
@@ -97,28 +98,58 @@ function evaluateAnswerQuality(input: AgentEvalRunInput, label: string): AgentEv
     return result("answer_quality", label, "not_run", [
       { code: "answer_unavailable", message: "尚无可评测的最终答案。" },
     ]);
-  const findings: AgentEvalFinding[] = [];
+  const findings: AgentEvalFinding[] = evaluateMemoryRecallPolicy(
+    input.memoryEvaluationRecalls ?? [],
+  );
   for (const expected of input.confirmedMemoryExpectations ?? []) {
+    if (input.memoryEvaluationRecalls?.some((r) => r.contact_id === expected.contactId)) continue;
     const observations = input.runtimeMessages
-      .filter(message => message.role === "tool" && message.toolName === "crm_get_contact" && !message.isError)
+      .filter(
+        (message) =>
+          message.role === "tool" && message.toolName === "crm_get_contact" && !message.isError,
+      )
       .map(parseStructuredToolResult)
-      .filter((value): value is Record<string, unknown> => !!value && typeof value === "object" &&
-        (value as Record<string, unknown>).id === expected.contactId);
-    if (!observations.length) continue;
-    const reads = observations.map(value => value.confirmed_customer_memory as
-      { coverage?: string; memories?: Array<{ id?: string }> } | undefined);
-    const observed = new Set(reads.flatMap(read => Array.isArray(read?.memories) ? read.memories.map(m => m.id) : []));
-    const missing = expected.memoryIds.filter(id => !observed.has(id)).length;
-    if (missing && !reads.some(read => read?.coverage === "partial"))
-      findings.push({ code: "confirmed_memory_not_observed",
+      .filter(
+        (value): value is Record<string, unknown> =>
+          !!value &&
+          typeof value === "object" &&
+          (value as Record<string, unknown>).id === expected.contactId,
+      );
+    if (!observations.length) {
+      if (expected.memoryIds.length)
+        findings.push({
+          code: "confirmed_memory_consumption_unproven",
+          message: "SQL 中存在确认记忆，但没有可核验的读取观察或使用回执。",
+        });
+      continue;
+    }
+    const reads = observations.map(
+      (value) =>
+        value.confirmed_customer_memory as
+          { coverage?: string; memories?: Array<{ id?: string }> } | undefined,
+    );
+    const observed = new Set(
+      reads.flatMap((read) =>
+        Array.isArray(read?.memories) ? read.memories.map((m) => m.id) : [],
+      ),
+    );
+    const missing = expected.memoryIds.filter((id) => !observed.has(id)).length;
+    if (missing && !reads.some((read) => read?.coverage === "partial"))
+      findings.push({
+        code: "confirmed_memory_not_observed",
         message: "独立 CRM 存在性记录表明运行结束时有确认记忆，但工具观察遗漏了这些事实。",
-        evidence: { missing, expected: expected.memoryIds.length } });
-    else if (reads.some(read => read?.coverage !== "complete"))
-      findings.push({ code: "confirmed_memory_coverage_incomplete",
-        message: "确认记忆读取不完整或不可用；不能把未读取解释为不存在。" });
+        evidence: { missing, expected: expected.memoryIds.length },
+      });
+    else if (reads.some((read) => read?.coverage !== "complete"))
+      findings.push({
+        code: "confirmed_memory_coverage_incomplete",
+        message: "确认记忆读取不完整或不可用；不能把未读取解释为不存在。",
+      });
     if (expected.memoryIds.length)
-      findings.push({ code: "memory_claims_require_semantic_review",
-        message: "确认记忆的存在性已独立核对；自然语言结论仍需语义复核，并非业务验收。" });
+      findings.push({
+        code: "memory_claims_require_semantic_review",
+        message: "确认记忆的存在性已独立核对；自然语言结论仍需语义复核，并非业务验收。",
+      });
   }
   if (input.resultDocument != null) {
     const parsed = workbenchResultDocumentSchema.safeParse(input.resultDocument);
@@ -189,20 +220,17 @@ function evaluateAnswerQuality(input: AgentEvalRunInput, label: string): AgentEv
     });
   if (
     findings.some(
-      (finding) => finding.code.startsWith("internal_") ||
+      (finding) =>
+        finding.code.startsWith("internal_") ||
         finding.code === "answer_likely_truncated" ||
         finding.code === "structured_result_unobserved_evidence" ||
         finding.code === "structured_fact_assertion_mismatch" ||
-        finding.code === "confirmed_memory_not_observed",
+        finding.code === "confirmed_memory_not_observed" ||
+        memoryPolicyFailure(finding.code),
     )
   )
     return result("answer_quality", label, "fail", findings);
-  return result(
-    "answer_quality",
-    label,
-    findings.length ? "needs_review" : "pass",
-    findings,
-  );
+  return result("answer_quality", label, findings.length ? "needs_review" : "pass", findings);
 }
 
 function evaluateKnowledge(
@@ -368,11 +396,12 @@ function evaluateCollaboration(
     };
   const findings: AgentEvalFinding[] = [];
   const expected =
-    typeof started?.payload.specialistCount === "number"
-      ? started.payload.specialistCount
-      : null;
+    typeof started?.payload.specialistCount === "number" ? started.payload.specialistCount : null;
   if (!started)
-    findings.push({ code: "collaboration_start_missing", message: "存在子运行但缺少协作开始事件。" });
+    findings.push({
+      code: "collaboration_start_missing",
+      message: "存在子运行但缺少协作开始事件。",
+    });
   if (!completed)
     findings.push({ code: "collaboration_completion_missing", message: "协作没有完成事件。" });
   if (expected !== null && expected !== runs.length)

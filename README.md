@@ -1,260 +1,247 @@
-<h1 align="center">Pi Native CRM</h1>
+# AI Native CRM
 
-<p align="center"><img src="docs/brand/pi-native-crm-icon.svg" alt="Pi Native CRM" width="104" /></p>
-<p align="center">
-  <strong>以真实 CRM 为状态空间的 Agent 原生工作台。</strong><br />
-  让 Agent 读取客户与商机，消费知识和记忆，调用工具推进业务；让人看清它做了什么、依据什么，以及 CRM 发生了哪些变化。
-</p>
-<p align="center">
-  <a href="#产品预览">产品预览</a> · <a href="#核心功能">核心功能</a> ·
-  <a href="#快速开始">快速开始</a> · <a href="docs/architecture/README.md">架构说明</a> ·
-  <a href="docs/integrations/agent-services.md">服务接入</a> · <a href="#社区与贡献">社区与贡献</a>
-</p>
-<p align="center">
-  <img src="https://img.shields.io/badge/status-内部研发-506D48" alt="内部研发版本" />
-  <img src="https://img.shields.io/badge/Next.js-React%20%2B%20TypeScript-477b74" alt="Next.js, React and TypeScript" />
-  <a href="https://m8ven.ai/mcp/ydflow-pi-native-crm-18xtoi?s=readme"><img src="https://m8ven.ai/badge/mcp/ydflow-pi-native-crm-18xtoi?variant=verified&amp;v=c334140390afdc95a4f966bb79065c7a" alt="M8ven Verified" /></a>
-</p>
-<p align="center"><a href="docs/SETUP.md">开发配置</a> · <a href="docs/testing/system-acceptance-fixes-2026-10-03.md">验证记录</a></p>
+<div align="center">
 
-> CRM 保存业务事实，Pi 驱动 Agent 行动，Harness 管理执行边界。
+**面向 Agent 协作的多租户 CRM 工作台**
 
-## 我们的产品
+把客户、会话、商机、任务、知识与记忆组织成统一业务上下文，让 AI Agent 在权限、审批、预算和审计约束下参与真实 CRM 工作。
 
-Pi Native CRM 是一个内部研发的 Agent-native CRM 工作台。联系人、会话、商机、跟进任务和知识库构成 Agent 的工作环境；自然语言目标成为执行入口。
+<a href="https://github.com/treasuresyq/AiNativeCrm">GitHub</a> ·
+<a href="https://crm.helson.top/#/app">在线产品预览</a> ·
+<a href="docs/architecture/README.md">系统架构</a> ·
+<a href="docs/SETUP.md">开发配置</a> ·
+<a href="docs/deploy-selfhost/README.md">自托管部署</a>
 
-我们关注的不只是生成一段回复，而是完整的业务动作：理解上下文、寻找证据、拆解任务、协同调查、调用工具、观察结果，再决定下一步。CRM 的价值在于提供真实对象、业务约束和可核验的状态变化。
+![GitHub](https://img.shields.io/badge/GitHub-treasuresyq%2FAiNativeCrm-181717?logo=github)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5%2B-3178C6?logo=typescript)
+![License](https://img.shields.io/badge/license-MIT-934531)
 
-打开工作台，选择一个内置 Agent 和目标对象，就能开始任务。执行过程、工具调用、审批、数据变化与评测都围绕同一个 Run 展开。
+</div>
 
 ## 产品预览
 
-### Agent–CRM 工作台设计预览
+以下截图来自项目的静态产品演示，展示 AI Native CRM 的真实信息架构与主要工作流。演示使用虚构数据，不会发起真实模型请求，也不会向外部渠道发送消息。
 
-<p align="center"><img src="docs/design/future-crm-workbench-blue-preview.png" alt="Agent–CRM 工作台设计预览，展示内置 Agent、执行时间线、CRM 状态与动作确认" width="1200" /></p>
+### 工作台概览
 
-此图为仓库已有的界面设计预览，展示 Agent、执行时间线与 CRM 状态的组织方式。图中模型连接、业务数值和版本号为设计示意。
-
-### 可运行演示与历史模型回放
-
-| Agent 对话演示 | 真实模型历史录制入口 |
-| --- | --- |
-| ![Agent 对话演示，使用虚构客户和预设回复](docs/screenshots/readme-2026-11-15/workbench-demo.jpg) | ![Agent 服务接入面板中的脱敏历史模型录制](docs/screenshots/readme-2026-11-15/real-recording.jpg) |
-| 从 CRM 对象发起任务，查看预设回复和执行记录。 | 查看 2026-10-03 保存的任务、工具观察和评测材料。 |
-
-以上两张截图于 2026-11-15 采自仓库静态演示。常规页面使用虚构数据与预设回复，历史录制展示已保存的真实模型输入输出。真实后端、数据库和外部服务需要独立启动与配置。运行方式见下方[演示与真实运行回放](#演示与真实运行回放)，演示细节见[范围说明](examples/chat-first-demo/README.md)。
-
-## 核心功能
+![AI Native CRM 工作台概览](docs/screenshots/readme-2026-11-20/overview.png)
 
 ### Agent 工作台
 
-- 以任务和 CRM 对象为入口，支持只读调查与行动模式。
-- 在同一条时间线上查看上下文、决策、工具调用、Observation 和状态变化。
-- 查看模型绑定、Token 用量、工具次数、预算与终止原因。
-- 通过持久化事件和 SSE 续读，在刷新后回放执行过程。
+![Agent CRM 工作台](docs/screenshots/readme-2026-11-20/workbench.png)
 
-### 四个内置 Agent
+### 会话收件箱
 
-| Agent          | 职责                                                          |
-| -------------- | ------------------------------------------------------------- |
-| CRM 情报员     | 汇总客户、历史会话、商机、知识与记忆，形成带证据的客户画像    |
-| 销售运营 Agent | 排查停滞商机、更新字段、调整阶段、安排后续跟进                |
-| 客户沟通 Agent | 结合会话和知识起草回复，核对承诺依据，提出转人工动作          |
-| CRM 主管 Agent | 跨漏斗、任务和执行记录调查异常，组织专职 Agent 协作并汇总结果 |
+![会话收件箱](docs/screenshots/readme-2026-11-20/inbox.png)
 
-组织预装内置 Agent，并提供可直接选择的场景任务。内置原件保持锁定，通过“复制并定制”创建自己的 Agent；原件跟随组织默认模型，副本固定创建时的模型配置。
+### 销售漏斗
 
-### 受控执行 Harness
+![销售漏斗](docs/screenshots/readme-2026-11-20/funnel.png)
 
-- Agent 的 CRM 读写经过工具端口，权限、组织作用域和目标范围贯穿执行。
-- 按读取、可逆写入、外部动作和不可逆动作分类管理工具。
-- 自动执行读取与具备业务补偿能力的写入，对外动作通过人工确认。
-- 保存字段差异、审计记录和撤销动作，将批准后的工具结果带回后续执行。
+## 项目定位
+
+AI Native CRM 不是只展示页面的静态站点，而是一个由 Next.js、Supabase、Agent Runtime、后台 Worker 和外部协作服务共同组成的业务系统。
+
+它关注四件事：
+
+- Agent 能读取客户、会话、商机、知识和记忆形成业务上下文。
+- Agent 只能通过受控工具推进 CRM，不能绕过权限直接修改数据库。
+- 用户可以查看 Agent 做了什么、依据什么、调用了哪些工具，以及 CRM 发生了什么变化。
+- 多 Agent 调查、人工确认、暂停恢复、预算控制和执行审计都成为可追踪的业务流程。
+
+> CRM 保存业务事实，Agent Runtime 驱动行动，Harness 管理执行边界。
+
+## 核心能力
+
+### Agent CRM 工作台
+
+- 以自然语言任务和 CRM 对象作为执行入口。
+- 支持只读调查、受控写入、人工审批和外部动作确认。
+- 查看上下文、决策、工具调用、Observation 和状态变化。
+- 通过持久化 Run Events 与 SSE 续读，支持刷新后的执行回放。
+- 展示模型绑定、Token 用量、工具次数、预算和终止原因。
+
+### CRM 与多租户
+
+- 客户、联系人、会话、商机、Pipeline、任务和跟进记录。
+- 基于组织的多租户隔离，Supabase Postgres RLS 负责数据层访问控制。
+- Supabase Auth、Storage 和 Realtime 集成。
+- 角色权限、审计日志、幂等请求和 API 访问令牌。
+
+### 客户记忆与业务本体
+
+- 支持客户记忆候选的生成、确认、改写、驳回、锁定、复核和替换。
+- 以业务本体描述客户、商机、任务、事件和 Agent 行动之间的关系。
+- 通过知识库、记忆和历史 Run 为 Agent 提供可追溯依据。
+- 使用确定性检查、语义评审和回归样例评估任务结果与策略遵守情况。
+
+### 执行治理与 Harness
+
+- 按读取、可逆写入、外部动作和不可逆动作管理工具。
+- 贯穿组织作用域、权限、目标范围、策略和预算限制。
+- 对需要确认的动作执行人工审批，并保存字段差异和审计记录。
 - 支持暂停、恢复、取消、执行租约、重试和累计预算控制。
+- 保存父子 Run，用于多 Agent 调查、结果汇总和后续业务动作。
 
-### 多 Agent 与商机 Mission
+### 会话与后台服务
 
-- 主管 Agent 组织只读专职 Agent 调查，使用父子 Run 保存各自的上下文与结果。
-- 独立调查支持并行执行，父 Run 统一管理业务写入和预算。
-- 商机 Mission 保存目标、验收条件、截止时间和跨运行进度。
-- 将客户回复、内部协作回复和负责人补充方向接入任务续跑。
-- 通过结构化结果、证据核验与方向版本，关联任务判断和 CRM 动作。
-
-### 知识与记忆
-
-- 本地 RAG 与 WeKnora Wiki 检索接口，为回答提供知识来源、页面版本与引用。
-- 联系人事实经人工确认后进入 CRM 记忆，供后续会话和任务消费。
-- Mem0 接入检索排序、记忆同步、删除与清理回执。
-- 组织记忆、客户记忆、知识材料和运行历史分层管理，SQL 保持业务事实源。
-- 组织 Skill、版本和参考资料加载接口，为 Agent 提供领域能力。
-
-### Eval 与可观测性
-
-- 围绕任务结果、证据、工具可靠性、策略遵守和记忆覆盖进行评测。
-- 结合确定性检查、真实模型语义评审与回归样例，保存评分依据。
-- Langfuse 接收模型与工具边界的 Trace、用量和 Eval 分数。
-- 通过持久化投递队列、去重与重试关联 CRM Run 和外部观测记录。
-- 在工作台回看真实模型录制、工具调用及评测结果，复用脱敏验证样例。
+- WhatsApp 通过 WAHA 接入会话和消息。
+- 飞书支持企业内部协作、成员绑定、消息关联和任务续跑。
+- Agent Worker 消费事件并执行后台 Agent 任务。
+- Scheduler 运行定时任务和事件处理。
+- Redis/Upstash 提供限流、队列辅助能力和幂等处理。
 
 ## 工作原理
 
 ```text
 自然语言任务 + CRM 对象
-          │
-          ▼
+          |
+          v
 上下文构建：CRM · Wiki · Memory · Skills · 历史 Run
-          │
-          ▼
-Pi Agent Loop ◄────────────── 工具结果 / 人工确认
-          │                              ▲
-          ▼                              │
+          |
+          v
+Agent Loop <---------------- 工具结果 / 人工确认
+          |                              ^
+          v                              |
 Harness：权限 · 范围 · 策略 · 预算 · 审批 · 恢复
-          │                              │
-          ▼                              │
-CRM 工具端口 ───────► 业务操作 ───────► Observation
-          │
-          ▼
+          |                              |
+          v                              |
+CRM 工具端口 -------> 业务操作 -------> Observation
+          |
+          v
 CRM 状态变化 + Run Events + Trace + Eval
 ```
 
-CRM 产品层通过自有接口调用运行内核；Pi 类型封装在适配层中。CRM 数据库保存业务事实，Run、事件与检查点保存执行状态。知识和记忆提供依据，工具负责动作，评测负责反馈。
+数据库保存业务事实，Run、事件和检查点保存执行状态；知识和记忆提供依据；工具负责动作；评测负责反馈。
 
-## 灵活集成
+## 技术栈
 
-- **模型**：组织级真实凭据、默认模型绑定、固定模型版本，以及 OpenAI、Anthropic、Google 和兼容模型接口。
-- **Memory**：Mem0 客户记忆适配器，与 CRM 确认事实、同步队列和生命周期管理衔接。
-- **LLM Wiki**：WeKnora 知识检索与来源接口，与本地 RAG、组织知识权限衔接。
-- **Trace / Eval**：Langfuse 项目绑定、OTLP Trace 和评测分数投递。
-- **WhatsApp**：WAHA 会话与消息工具，将客户沟通纳入审批和审计。
-- **飞书内部协作**：企业身份映射、成员绑定、消息队列、回复关联与任务续跑接口。
-
-第三方服务按组织绑定和启用，接入配置由服务端管理。模型凭据与服务凭据在服务端保管，不写入运行事件或提交记录。
+| 领域 | 技术 |
+| --- | --- |
+| Web 应用 | Next.js 16 App Router、React 19、TypeScript |
+| UI | Tailwind CSS 4、Radix UI、Lucide、Phosphor Icons |
+| 数据库 | Supabase Postgres、RLS、Vector、Realtime、Storage |
+| 认证 | Supabase Auth、`@supabase/ssr` |
+| Agent | Pi Agent Core、Pi AI、Model Gateway |
+| AI Provider | OpenAI、Anthropic、Google 及兼容模型接口 |
+| 后台任务 | Agent Worker、Scheduler、`event_log` |
+| 外部渠道 | WAHA、WhatsApp、飞书、WeKnora、Mem0、Langfuse |
+| 测试 | Vitest、Playwright、axe-core |
+| 生产运行 | Docker Compose、Caddy、Linux VPS |
 
 ## 快速开始
 
-### 本地开发
+### 环境要求
 
-准备 Node.js 22+、pnpm，以及开发用 Supabase 和 Redis 配置。
+- Node.js 22 或更高版本
+- pnpm 9.15.9
+- Supabase 项目
+- Redis/Upstash 配置
+- Git
 
-```bash
-git clone https://github.com/ydflow/pi-native-crm.git
-cd pi-native-crm
+```powershell
+git clone https://github.com/treasuresyq/AiNativeCrm.git
+Set-Location AiNativeCrm
+corepack enable
+corepack prepare pnpm@9.15.9 --activate
 pnpm install --frozen-lockfile
-
-# 仅在配置文件不存在时创建，保留已有配置
-test -e .env.local || cp .env.example .env.local
-test -e .env || touch .env
+Copy-Item .env.example .env.local
 ```
 
-按照 [开发配置指南](docs/SETUP.md)填写 Supabase、Redis、应用地址及服务端加密配置；新开发数据库按指南初始化。已有数据库按迁移流程更新。
-
-在不同终端中启动：
+macOS/Linux：
 
 ```bash
-# Web
+git clone https://github.com/treasuresyq/AiNativeCrm.git
+cd AiNativeCrm
+corepack enable
+corepack prepare pnpm@9.15.9 --activate
+pnpm install --frozen-lockfile
+cp .env.example .env.local
+```
+
+根据 [开发配置指南](docs/SETUP.md) 填写 Supabase、Redis、应用地址和服务端加密配置。不要把真实密钥写入 Git 仓库。
+
+### 启动开发服务
+
+```bash
 pnpm dev --port 3000
 
-# Agent 执行进程
+# 另一个终端：Agent 执行进程
 pnpm worker
 
-# 本地辅助调度
+# 另一个终端：本地调度任务
 pnpm dev:crons
 ```
 
-打开 [本地工作台](http://localhost:3000/app/ai/workbench)，登录后在组织模型配置页绑定真实模型凭据，选择内置 Agent、CRM 对象和任务开始运行。
-
-Mem0、WeKnora 与 Langfuse 的本地服务部署和组织绑定，见 [本地服务指南](infra/local-agent-services/README.md)与[接入契约](docs/integrations/agent-services.md)。
-
-### 演示与真实运行回放
-
-```bash
-node scripts/serve-agent-demo.mjs
-```
-
-打开 [演示工作台](http://127.0.0.1:3008/#/app/ai/workbench)。演示包含合成 CRM 场景与脱敏的真实模型录制；“真实模型录制”展示历史输入输出、工具调用、记忆、知识引用与评测，不重新发起模型请求。演示页面与真实后端独立运行。
+打开 `http://localhost:3000/app/ai/workbench`，登录后配置组织模型和 Agent，再选择 CRM 对象与任务开始运行。
 
 ### 常用命令
 
-| 命令                             | 用途                         |
-| -------------------------------- | ---------------------------- |
-| `pnpm dev`                       | 启动开发 Web 服务            |
-| `pnpm worker`                    | 启动 Agent 执行进程          |
-| `pnpm dev:crons`                 | 启动本地辅助调度             |
-| `pnpm ai:agents:ensure-builtins` | 为已有组织幂等补齐内置 Agent |
-| `pnpm typecheck`                 | 类型检查                     |
-| `pnpm lint`                      | 代码检查                     |
-| `pnpm test:unit`                 | 单元测试                     |
-| `pnpm test:db`                   | 数据库不变量与隔离检查       |
-| `pnpm test:e2e`                  | 浏览器测试                   |
-| `pnpm test:e2e:acceptance`       | 专项验收测试                 |
-| `pnpm test:e2e:live`             | 真实模型场景测试             |
-| `pnpm build`                     | 构建应用                     |
+| 命令 | 用途 |
+| --- | --- |
+| `pnpm dev` | 启动开发 Web 服务 |
+| `pnpm worker` | 启动 Agent Worker |
+| `pnpm dev:crons` | 启动本地调度任务 |
+| `pnpm ai:agents:ensure-builtins` | 为已有组织补齐内置 Agent |
+| `pnpm typecheck` | TypeScript 类型检查 |
+| `pnpm lint` | ESLint 检查 |
+| `pnpm test:unit` | 单元测试 |
+| `pnpm test:db` | 数据库隔离与不变量测试 |
+| `pnpm test:e2e` | Playwright 浏览器测试 |
+| `pnpm build` | 构建生产应用 |
 
-## 项目状态
+## 部署模型
 
-当前为内部研发版本，主分支围绕 Agent 工作台、受控 CRM 工具、多 Agent 协作、商机 Mission、知识记忆和 Eval 持续迭代。
+本项目的完整生产形态是 **Linux VPS + Docker Compose + Supabase**，不是纯静态网站。生产部署通常包含 app、worker、scheduler、WAHA、Redis 和 Caddy。
 
-- **真实运行记录**：已沉淀真实模型、多 Agent、Mem0 / WeKnora / Langfuse 联调与脱敏回放。[查看运行记录](docs/testing/agent-services-real-run-2026-10-03.md) · [查看三服务联调](docs/testing/local-agent-services-connected-2026-10-03.md)
-- **系统复验记录**：2026-10-03 完成单元测试、数据库不变量、关键浏览器场景及真实模型复验。[查看复验报告](docs/testing/system-acceptance-fixes-2026-10-03.md)
-- **工程复核记录**：2026-10-05 类型检查、lint、构建与全量单测通过，单测 1,324 个文件、12,958 项通过。[查看工程复核](docs/testing/repository-hygiene-2026-10-05.md)
+- [自托管部署](docs/deploy-selfhost/README.md)
+- [生产部署运行手册](docs/runbooks/deploy.md)
+- [部署检查清单](docs/DEPLOY-CHECKLIST.md)
 
-执行记录用于证明实际链路，业务结果由证据与验收条件核验；详细测量范围保存在对应报告中。
+GitHub、Cloudflare 和阿里云承担不同职责：
 
-## 技术与目录
+1. GitHub 保存代码、迁移文件、文档和部署配置，负责版本管理与回滚。
+2. 阿里云 ECS 可以运行 Docker Compose、Next.js、Worker、Scheduler 和 WAHA 等长驻服务。
+3. Cloudflare 可以承担 DNS、CDN、代理、SSL/TLS 或 Tunnel，但不替代 Node.js、数据库和后台 Worker。
 
-基于 Next.js、React、TypeScript、Tailwind CSS、Supabase、Pi Agent Core / Pi AI，以及 Vitest、Playwright 构建。
+如果只部署静态演示页，可以使用 Cloudflare Pages 或阿里云 OSS；完整 CRM 应优先按 VPS 自托管文档部署。
 
-| 目录                  | 内容                                              |
-| --------------------- | ------------------------------------------------- |
-| `app/`、`components/` | CRM 页面、Agent 工作台与产品 API                  |
-| `lib/`                | CRM 领域逻辑、工具、Harness、知识记忆与服务适配器 |
-| `workers/`            | 后台 Agent 执行                                   |
-| `supabase/`           | 数据库基线、迁移与权限规则                        |
-| `infra/`              | 服务部署与接入配置                                |
-| `tests/`              | 单元、数据库与浏览器测试                          |
-| `examples/`           | 演示场景与回放入口                                |
-| `docs/`               | 架构、规格、配置与验证记录                        |
-| `evidence/`           | 文档引用的验证证据                                |
+## 目录结构
 
-本地输出放在 `output/`、`tmp/` 或 `scratchpad/`，历史交接放在 `docs/handoffs/`。环境文件、真实凭据、客户数据和数据库备份不进入版本库。
-
-## 助手 guias
-
-仓库内置一套面向 AI 编程助手的领域 guias（`pi-native-instalar`、`pi-native-cliente-novo`、`pi-native-metricas` 等），把它们安装到全局目录后，在 Claude Code、Codex、Cursor、OpenCode 和 Antigravity 里提到相应主题就会自动加载对应 guia：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ydflow/pi-native-crm/main/scripts/instalar-guias.sh | bash
+```text
+app/                    Next.js 页面、Server Actions 和 API Route Handlers
+components/             UI 组件与业务组件
+lib/                    CRM 领域逻辑、工具、Harness、知识和记忆适配器
+workers/                Agent 后台执行进程
+supabase/               数据库基线、迁移和 RLS
+tests/                  单元、数据库、浏览器和专项验收测试
+scripts/                开发、迁移、演示和部署辅助脚本
+docs/                   架构、配置、部署和验证文档
 ```
 
-安装后按名字调用：`/pi-native-instalar` 在 Claude Code、Cursor 和 Antigravity；`$pi-native-instalar` 在 Codex；在 OpenCode 里直接说明（"use o guia pi-native-instalar"）。移除用 `... | bash -s -- --remover`。详见 `scripts/instalar-guias.sh`。
-
-## 文档
+## 文档导航
 
 - [文档入口](docs/index.md)
-- [Agent 架构](docs/architecture/README.md)
-- [商机 Mission 与执行状态](docs/architecture/mission-state.md)
-- [飞书内部协作接口](docs/architecture/internal-collaboration-feishu.md)
-- [Memory、Wiki 与 Langfuse 接入](docs/integrations/agent-services.md)
-- [本地服务启动与联调](infra/local-agent-services/README.md)
-- [专项 E2E 测试入口](tests/e2e/configs/README.md)
+- [开发配置](docs/SETUP.md)
+- [系统架构](docs/architecture/README.md)
+- [Agent 服务接入](docs/integrations/agent-services.md)
+- [当前项目状态](docs/current-state.md)
+- [自托管部署](docs/deploy-selfhost/README.md)
+- [安全模型](docs/threat-model.md)
 
-内部开发先阅读 [AGENTS.md](AGENTS.md)与[CLAUDE.md](CLAUDE.md)。本项目包含继承代码，遵循 [MIT 许可及原版权声明](LICENSE)。
+## 安全说明
 
-## 社区与贡献
+- 不要提交 `.env`、`.env.local` 或任何真实凭据。
+- `SUPABASE_SERVICE_ROLE_KEY`、模型 API Key、WAHA 密钥和加密密钥只能在服务端保存。
+- 使用 Supabase Service Role 时，服务端必须显式校验组织作用域。
+- 不要把真实客户数据、数据库备份、截图或运行日志提交到仓库。
+- 漏洞请通过 [GitHub 私密安全报告](https://github.com/treasuresyq/AiNativeCrm/security/advisories/new) 提交。
 
-[欢迎参与](https://github.com/ydflow/pi-native-crm/issues/14) · [阶段路线图](https://github.com/ydflow/pi-native-crm/issues/15) · [能力地图](https://github.com/ydflow/pi-native-crm/issues/16) · [Milestones](https://github.com/ydflow/pi-native-crm/milestones)
+## 当前状态
 
-欢迎围绕 CRM 业务场景、Agent 执行可靠性、知识记忆、证据评测和工作台体验参与。可复现缺陷、明确功能建议与开发任务通过 [Issues](https://github.com/ydflow/pi-native-crm/issues) 跟踪，设计取舍通过 RFC 表单讨论。
+项目处于持续迭代阶段，仓库已包含 Agent 工作台、CRM 业务对象、受控工具执行、多租户数据隔离、后台 Worker、知识与记忆接入、评测和自托管部署相关实现。具体完成度与已知限制以 [当前项目状态](docs/current-state.md) 及 `docs/` 下的验证记录为准。
 
-| 参与方式 | 入口 |
-| --- | --- |
-| 报告问题或提出建议 | [缺陷、功能、证据问题与设计提案](https://github.com/ydflow/pi-native-crm/issues/new/choose) |
-| 找一个最小任务开始 | [适合首次参与的任务](https://github.com/ydflow/pi-native-crm/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22) · [需要协作的任务](https://github.com/ydflow/pi-native-crm/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22help%20wanted%22) |
-| 查看阶段进度 | [上手与复现](https://github.com/ydflow/pi-native-crm/milestone/1) · [执行与一致性](https://github.com/ydflow/pi-native-crm/milestone/2) · [证据与评测](https://github.com/ydflow/pi-native-crm/milestone/3) |
-| 准备提交改动 | [贡献指南](CONTRIBUTING.md) · [团队与个人负责范围](CONTRIBUTIONS.md) |
+## License
 
-认领前先阅读 Issue 的范围、源码起点和验收标准，检查 assignee 与关联 PR，再留言说明准备完成的最小范围，由维护者确认分配。提交时附真实环境、验证命令、结果与脱敏证据，UI 改动附截图。阶段任务按各自验收清单更新进度。
-
----
-
-<p align="center"><sub>Pi Native CRM · CRM 保存业务事实，Pi 驱动 Agent 行动，Harness 管理执行边界。</sub></p>
+本项目遵循仓库中的 [MIT License](LICENSE) 及相关原版权声明。
