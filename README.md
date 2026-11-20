@@ -1,4 +1,4 @@
-# AI Native CRM
+<h1 align="center">AI Native CRM</h1>
 
 <div align="center">
 
