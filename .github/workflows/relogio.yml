@@ -1,3 +1,4 @@
+# CI paused 2026-10-25 (Actions minutes exhausted). Restore the original triggers to re-enable.
 # O RELÓGIO DE QUEM NÃO TEM AGENDADOR.
 #
 # Existe para instalação sem agendador próprio — hospedagem que não oferece cron
@@ -20,10 +21,8 @@
 name: relogio
 
 on:
-  schedule:
-    # A cada 5 min. O GitHub atrasa schedule com folga (5–15 min é normal); quem
-    # precisa de minuto a minuto usa a Opção B do runbook (cron-job.org).
-    - cron: "*/5 * * * *"
+  # A cada 5 min. O GitHub atrasa schedule com folga (5–15 min é normal); quem
+  # precisa de minuto a minuto usa a Opção B do runbook (cron-job.org).
   workflow_dispatch:
 
 # Nenhum escopo: este job não fala com a API do GitHub, só faz um POST na

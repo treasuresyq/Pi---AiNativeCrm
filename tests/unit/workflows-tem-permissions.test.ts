@@ -63,6 +63,10 @@ const ESCRITA_JUSTIFICADA: Record<string, string> = {
   "acolhida.yml::pull-requests: write":
     "comenta a acolhida no PR de fork; é o ÚNICO escopo do workflow (o bloco zera o resto), " +
     "e o job não faz checkout nem usa action nenhuma — ver tests/unit/acolhida-nao-toca-no-fork.test.ts",
+  "verify-crm-verifier.yml::pull-requests: write":
+    "comenta PASS, PASS+NOTES ou FAIL no PR depois do workflow ci; um comentário " +
+    "editado por PR (marcador verify-crm-verdict). O drive com segredo só roda " +
+    "quando o head é deste repositório; fork não é executado. Verde do ci.yml não é o veredito.",
 };
 
 interface Workflow {

@@ -1,3 +1,4 @@
+# CI paused 2026-10-25 (Actions minutes exhausted). Restore the original triggers to re-enable.
 # A ACOLHIDA DE CONTRIBUIDOR EXTERNO — SEM DEPENDER DE ALGUÉM ESTAR TRIANDO.
 #
 # ## O gargalo medido
@@ -29,7 +30,7 @@
 # medição em vez de confiar nesta linha:
 #
 #   gh pr list --state all --limit 60 --json number,createdAt,author,headRepositoryOwner
-#   (filtre headRepositoryOwner != ydflow, pegue o 1º comentário não-bot)
+#   (filtre headRepositoryOwner != helsome, pegue o 1º comentário não-bot)
 #
 # veredito. O molde é `triagem/references/resposta-ao-contribuidor.md`, seção
 # "Acolhida" — mudar o texto lá sem mudar aqui faz a versão humana e a
@@ -107,8 +108,7 @@ name: acolhida
 on:
   # `opened` e só. `synchronize`/`reopened` re-disparariam a acolhida a cada push
   # do contribuidor — e a boa-vinda que chega quatro vezes é ruído, não acolhida.
-  pull_request_target:
-    types: [opened]
+  workflow_dispatch:
 
 permissions:
   pull-requests: write
@@ -121,7 +121,7 @@ jobs:
   # não é o dela. É `repository_owner` e não `repository` porque renomear o
   # repositório não deve calar a acolhida; mudar de dono deve.
   acolher:
-    if: github.repository_owner == 'ydflow' && github.event.pull_request.head.repo.full_name != github.repository
+    if: github.repository_owner == 'treasuresyq' && github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

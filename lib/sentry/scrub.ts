@@ -150,6 +150,22 @@ function scrubEventUrls<T extends EventLike>(event: T): T {
  * e cliente de uma vez, sem depender de alguém lembrar dos três arquivos.
  */
 export const sentryScrubHooks = {
+  // Mantém a política de coleta e os hooks de transação da v10 na v11.
+  traceLifecycle: "static" as const,
+  dataCollection: {
+    userInfo: false,
+    cookies: false,
+    httpHeaders: {
+      request: { deny: ["forwarded", "-ip", "remote-", "via", "-user"] },
+      response: { deny: ["forwarded", "-ip", "remote-", "via", "-user"] },
+    },
+    httpBodies: [],
+    urlQueryParams: { deny: ["forwarded", "-ip", "remote-", "via", "-user"] },
+    genAI: { inputs: false, outputs: false },
+    databaseQueryData: false,
+    queues: false,
+    graphQL: { document: false, variables: false },
+  },
   beforeSend<T extends EventLike>(event: T): T {
     scrubEventUrls(event);
     if (typeof event.message === "string") {

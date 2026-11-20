@@ -10,6 +10,68 @@
 
 ## Convenções
 
+### Customer memory loop — issue 28 checkpoint (2026-11-12)
+
+`tests/e2e/customer-memory-loop.spec.ts` passed against a fresh local Supabase pg15 baseline,
+bootstrap owner, local Redis REST and authenticated local WAHA. The browser opens a labeled
+synthetic report, rewrites/confirms an evidence-backed L2 card, rejects another with a reason and
+chosen cooldown, then opens the contact dossier, saves a locked constraint, explicitly unlocks
+and retires it, reloads and checks actual SQL state. The operations disclosure is measured at
+less than 2px while closed. Screenshots: `.superpowers/evidence/customer-memory-loop/`.
+This proves the human review path; model extraction uses the separate real-DB gateway-fixture
+suite. Live-provider extraction, task-time used-memory receipts/correction, queue pagination and
+all remaining issue acceptance are not established by this scenario. Onboarding completion is
+a fixture prerequisite rather than a measured wizard flow.
+
+### Memory usage correction checkpoint (2026-11-13)
+
+The same real-browser scenario now refreshes a synthetic consumption receipt beside the report,
+opens the source link, submits a memory-use correction and verifies that SQL flags the used
+revision without changing its body. Native Pi consumption is tested separately against real SQL
+with the deterministic provider fixture. This is not live-model acceptance. The reply panel uses
+the same receipt component; current draft-generation isolation is covered by the DB invariant.
+Committed synthetic screenshots are in `docs/evidence/issue28/`; local traces remain ignored.
+
+### Memory metrics and pagination checkpoint (2026-11-13)
+
+The expanded `customer-memory-loop.spec.ts` passed all three browser cases against the same
+isolated fresh-baseline stack. Manager decisions and report corrections produce SQL metrics
+with explicit denominators and no invented zero values. A separate authenticated agent sees
+only the public queue after 120 private suggestions, loads all 105 confirmed rows, and is denied
+the manager metrics endpoint. Tampered and other-contact cursors are rejected. A manager loads
+all 61 equal-timestamp conflicts across two pages without duplicates or omissions.
+
+Synthetic screenshots: [metrics](../evidence/issue28/manager-metrics.png),
+[agent pagination](../evidence/issue28/agent-paginated-memory.png), and
+[conflict pagination](../evidence/issue28/manager-paginated-conflicts.png).
+This extends the earlier single scenario; it is not a live external-model acceptance claim.
+
+### Memory background status and retry checkpoint (2026-11-13)
+
+All four `customer-memory-loop.spec.ts` scenarios pass in the isolated fresh-baseline stack.
+The new journey sees an unavailable extraction in the real report footer, opens the existing
+model settings, retries from the contact panel, and verifies one pending job and one actor audit.
+An ordinary authenticated agent cannot see private-source activity or retry it; current ownership
+permits a public-source retry, while revoked membership rejects its replay. Retry keeps the
+original source boundary and does not create confirmed facts. The unavailable receipt is a
+synthetic fixture, not a live-model failure claim. Queue claiming and L2 production are separately
+covered by the real-DB activity invariant.
+
+Synthetic screenshots: [report explanation](../evidence/issue28/report-background-unavailable.png)
+and [contact retry](../evidence/issue28/contact-background-retry.png).
+
+### Follow-up timing memory regression (2026-11-13)
+
+`tests/invariants/customer-memory-followup-timing.test.ts` exercises the actual queued-turn
+caller and native Pi provider boundary against the fresh SQL baseline. Timing stays on its
+origin conversation even when the contact has a newer one. Valid locked contact constraints
+are present; expired, unconfirmed and other-contact rows are absent. Each request reads current
+SQL and records consumed IDs under `followup_decide_timing`; stale services and foreign
+conversation scopes reject before a provider request. This is deterministic provider/SQL
+acceptance, not proof of natural-language scheduling quality or an external message send.
+
+### Existing journey conventions
+
 - `[P0]` primeira impressão — bug aqui é vergonha pública; prioridade máxima.
 - `[P1]` rotina diária do operador/atendente.
 - `[P2]` exploração/edge.
@@ -1065,7 +1127,7 @@ Critério: nenhuma tela quebra, nenhum stack trace, nenhum texto de erro cru.
 |----|--------|--------|-----------|
 | M1 | `supabase/config.toml` trava `major_version = 15`, mas `baseline.sql` exige PG17 (`GRANT MAINTAIN`) — contribuidor open-source não sobe ambiente local | reproduzido | Alta (DX) |
 | M2 | Trilha manual do `docs/deploy-selfhost/README.md` não configura o cron do drain → automações mortas em silêncio | explorer webhooks | Alta |
-| M3 | ~~README self-host aponta repo/imagem `pi-native-crm/*`; kit usa `ydflow/*`~~ **CORRIGIDO 2026-08-13** — era um `git clone` de uma org que não existe (404) em `docs/deploy-selfhost/README.md:26`. Uma consultoria externa leu essa string e concluiu que o compose apontava para uma org desvinculada; o compose sempre apontou para `ydflow`. | explorer webhooks | — |
+| M3 | ~~README self-host aponta repo/imagem `pi-native-crm/*`; kit usa `helsome/*`~~ **CORRIGIDO 2026-08-13** — era um `git clone` de uma org que não existe (404) em `docs/deploy-selfhost/README.md:26`. Uma consultoria externa leu essa string e concluiu que o compose apontava para uma org desvinculada; o compose sempre apontou para `helsome`. | explorer webhooks | — |
 | M4 | `INVITE_TOKEN_SECRET` ausente → fallback `"dev-fallback"` → convite forjável em VPS mal configurada | explorer CRM/time | Alta (segurança) |
 | M5 | AI Gateway key ausente → bot mudo sem NENHUM feedback na UI | explorer IA | Média |
 | M6 | Knowledge sources: botões de upload/configurar são stubs "Em breve" | explorer IA | Média |
@@ -1098,7 +1160,7 @@ Critério: nenhuma tela quebra, nenhum stack trace, nenhum texto de erro cru.
 Ambiente: VPS HostGator (143.95.209.17), domínio `test-crm.vidagamificada.com.br`,
 projeto Supabase **novo e virgem** (0 tabelas / 0 usuários / 0 buckets antes de cada
 instalação), cache de build do Docker zerado (a VPS realmente compila o worker),
-imagem `ghcr.io/ydflow/pi-native-crm:latest` — a mesma que o comprador recebe.
+imagem `ghcr.io/helsome/pi-native-crm:latest` — a mesma que o comprador recebe.
 
 Duas instalações completas do zero: a primeira para achar defeitos, a segunda
 (após todas as correções publicadas na `main`) como prova. Entre elas, o banco
@@ -2874,3 +2936,13 @@ painel de voz, foco após aprovação, e jornada com Supabase fresco/modelo. jsd
 As specs opt-in `agent-crm-workbench-real-model.spec.ts` e
 `agent-crm-workbench-real-tenant.spec.ts` foram adaptadas, mas não executadas nesta mudança.
 Não registrar esta cobertura parcial como PASS de E2E.
+
+## Workbench motion — 2026-10-04
+
+Contract and bounded validation: [`workbench-motion.md`](workbench-motion.md).
+New messages versus history/repeated polls, immediate failed/cancelled states,
+IME and multiline submission, reading-history scroll retention, keyboard
+disclosures and reduced-motion preference have dedicated offline fixtures.
+`node scripts/qa-workbench-motion.mjs` exercises the actual components/styles
+in Chromium with synthetic responses and records screenshots. This is not
+a claim of authenticated backend or fresh-baseline E2E coverage.

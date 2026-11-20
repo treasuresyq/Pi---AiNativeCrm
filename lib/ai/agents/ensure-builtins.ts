@@ -153,7 +153,9 @@ async function ensureDraftVersion(
   if (!catalogModel?.supports_tools || catalogModel.deprecated_at) return;
   const { data: latest, error: readError } = await admin
     .from("ai_agent_versions")
-    .select("id, version_number, status, system_prompt, tool_ids, knowledge_source_ids, max_steps, token_budget, cost_budget_cents")
+    .select(
+      "id, version_number, status, system_prompt, tool_ids, knowledge_source_ids, max_steps, token_budget, cost_budget_cents",
+    )
     .eq("organization_id", organizationId)
     .eq("agent_id", agentId)
     .order("version_number", { ascending: false })

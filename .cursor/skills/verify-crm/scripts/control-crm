@@ -1,0 +1,420 @@
+#!/usr/bin/env bash
+# control-crm — launch, doctor, drive, and clean one local CRM verification instance.
+# Invocation is documented in .cursor/skills/verify-crm/SKILL.md.
+set -euo pipefail
+
+SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+if [[ -n "${VERIFY_CRM_ROOT:-}" ]]; then
+  ROOT="$(cd "$VERIFY_CRM_ROOT" && pwd)"
+else
+  ROOT="$(cd "$SKILL_DIR/../../.." && pwd)"
+fi
+STATE_ROOT="${VERIFY_CRM_STATE_ROOT:-/tmp/verify-crm}"
+EVIDENCE_ROOT="${VERIFY_CRM_EVIDENCE_ROOT:-/tmp/verify-crm-evidence}"
+ARTIFACT_ROOT="${VERIFY_CRM_ARTIFACT_ROOT:-/opt/cursor/artifacts/verify-crm}"
+PORT="${VERIFY_CRM_PORT:-3011}"
+MODEL_ID="${OPENCODE_E2E_MODEL_ID:-cat-jam-free}"
+MODEL_NAME="${OPENCODE_E2E_DISPLAY_NAME:-Cat Jam Free (OpenCode Go)}"
+SRH_IMAGE="${VERIFY_CRM_SRH_IMAGE:-hiett/serverless-redis-http@sha256:5b0bb9239fce53abf87b2018a7a0deb9ec7bd900c5360738fe5fbeeb426f9150}"
+REDIS_IMAGE="${VERIFY_CRM_REDIS_IMAGE:-redis:7-alpine}"
+
+usage() {
+  cat <<'EOF'
+control-crm — drive the CRM workbench the way a manager would.
+
+  control-crm launch
+  control-crm doctor
+  control-crm drive workbench-run
+  control-crm browser <args>
+  control-crm observe-unreachable
+  control-crm cleanup [--dry-run]
+  control-crm status
+
+State:   /tmp/verify-crm/$RUN_ID/instance.json
+Evidence:/tmp/verify-crm-evidence/$RUN_ID  and  /opt/cursor/artifacts/verify-crm/$RUN_ID
+EOF
+}
+
+current_run_file() {
+  if [[ -n "${VERIFY_CRM_RUN_ID:-}" && -f "$STATE_ROOT/$VERIFY_CRM_RUN_ID/instance.json" ]]; then
+    printf '%s\n' "$STATE_ROOT/$VERIFY_CRM_RUN_ID/instance.json"
+    return 0
+  fi
+  local latest=""
+  shopt -s nullglob
+  for f in "$STATE_ROOT"/*/instance.json; do
+    latest="$f"
+  done
+  shopt -u nullglob
+  if [[ -z "$latest" ]]; then
+    echo "control-crm: no instance. Run launch first." >&2
+    exit 1
+  fi
+  printf '%s\n' "$latest"
+}
+
+json_get() {
+  local file="$1" key="$2"
+  node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); const v=j[process.argv[2]]; if(v===undefined||v===null) process.exit(2); process.stdout.write(String(v));' "$file" "$key"
+}
+
+pid_alive() {
+  local pid="$1"
+  [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
+}
+
+refuse_other_instance() {
+  shopt -s nullglob
+  for f in "$STATE_ROOT"/*/instance.json; do
+    local pid
+    pid="$(json_get "$f" appPid 2>/dev/null || true)"
+    if pid_alive "$pid"; then
+      echo "control-crm: refusing to start a second instance while $(json_get "$f" runId) owns the app (pid $pid)." >&2
+      exit 1
+    fi
+  done
+  shopt -u nullglob
+}
+
+supabase_bin() {
+  if command -v supabase >/dev/null 2>&1; then
+    command -v supabase
+    return
+  fi
+  echo "npx --yes supabase@2.117.0"
+}
+
+port_in_use() {
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltn | awk '{print $4}' | grep -Eq "[:.]${PORT}$"
+    return
+  fi
+  (echo >/dev/tcp/127.0.0.1/"$PORT") >/dev/null 2>&1
+}
+
+load_e2e_env() {
+  set -a
+  # shellcheck disable=SC1091
+  . "$ROOT/.env.e2e"
+  set +a
+  unset AI_INTEGRATION_BINDINGS || true
+  unset INTERNAL_AGENT_RUN_STUB || true
+  # Product default is Zen when this is empty. The free key completes on Go.
+  if [[ -z "${OPENCODE_BASE_URL:-}" ]]; then
+    export OPENCODE_BASE_URL="https://opencode.ai/zen/go/v1"
+  fi
+  if [[ -n "${OPENCODE_MODEL:-}" ]]; then
+    export OPENCODE_E2E_MODEL_ID="$OPENCODE_MODEL"
+  fi
+  MODEL_ID="${OPENCODE_E2E_MODEL_ID:-cat-jam-free}"
+  if [[ "$MODEL_ID" != "cat-jam-free" && -z "${OPENCODE_E2E_DISPLAY_NAME:-}" ]]; then
+    MODEL_NAME="$MODEL_ID"
+  fi
+}
+
+restore_migrations() {
+  local run_dir="$1"
+  if [[ -f "$run_dir/migrations-moved" && -d "$run_dir/migrations-off" ]]; then
+    rm -rf "$ROOT/supabase/migrations"
+    mv "$run_dir/migrations-off" "$ROOT/supabase/migrations"
+    rm -f "$run_dir/migrations-moved"
+    echo "control-crm: restored supabase/migrations"
+  fi
+}
+
+cmd_launch() {
+  cd "$ROOT"
+  refuse_other_instance
+  if port_in_use; then
+    echo "control-crm: port $PORT is already in use. Refusing to drive an instance this run did not start." >&2
+    exit 1
+  fi
+  if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
+    echo "control-crm: docker is not available. supabase start and the Redis pair cannot start." >&2
+    exit 1
+  fi
+  if [[ ! -x "$ROOT/node_modules/.bin/next" ]]; then
+    echo "control-crm: node_modules/.bin/next is missing. Run pnpm install in $ROOT first." >&2
+    exit 1
+  fi
+  local sb
+  sb="$(supabase_bin)"
+  if $sb status >/dev/null 2>&1; then
+    echo "control-crm: a Supabase stack is already running. This skill refuses to share it." >&2
+    exit 1
+  fi
+
+  local run_id run_dir
+  run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+  run_dir="$STATE_ROOT/$run_id"
+  mkdir -p "$run_dir" "$EVIDENCE_ROOT/$run_id" "$ARTIFACT_ROOT/$run_id"
+  export VERIFY_CRM_RUN_ID="$run_id"
+
+  cleanup_partial() {
+    echo "control-crm: launch failed; cleaning what this attempt started" >&2
+    if [[ -f "$run_dir/app.pid" ]]; then
+      local pid
+      pid="$(cat "$run_dir/app.pid" 2>/dev/null || true)"
+      [[ -n "$pid" ]] && kill "$pid" 2>/dev/null || true
+    fi
+    if [[ -f "$run_dir/worker.pid" ]]; then
+      local wpid
+      wpid="$(cat "$run_dir/worker.pid" 2>/dev/null || true)"
+      [[ -n "$wpid" ]] && kill "$wpid" 2>/dev/null || true
+    fi
+    restore_migrations "$run_dir" || true
+    docker rm -f "verify-crm-redis-$run_id" "verify-crm-srh-$run_id" >/dev/null 2>&1 || true
+    docker network rm "verify-crm-$run_id" >/dev/null 2>&1 || true
+    if [[ -f "$run_dir/started-supabase" ]]; then
+      # shellcheck disable=SC2086
+      (cd "$ROOT" && $sb stop --no-backup) || true
+    fi
+  }
+  trap cleanup_partial ERR
+
+  echo "control-crm: moving migrations aside so supabase start applies no chain"
+  mv "$ROOT/supabase/migrations" "$run_dir/migrations-off"
+  mkdir -p "$ROOT/supabase/migrations"
+  echo moved > "$run_dir/migrations-moved"
+
+  echo "control-crm: supabase start"
+  # shellcheck disable=SC2086
+  $sb start
+  echo started >"$run_dir/started-supabase"
+
+  echo "control-crm: extensions + baseline.sql"
+  psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q <<'SQL'
+create schema if not exists extensions;
+create extension if not exists "uuid-ossp" with schema extensions;
+create extension if not exists pgcrypto with schema extensions;
+create extension if not exists vector with schema public;
+create extension if not exists citext with schema public;
+create extension if not exists pg_trgm with schema public;
+SQL
+  psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q -f "$ROOT/supabase/baseline.sql"
+  psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q \
+    -c "insert into private.app_secrets (name, value) values ('nuvemshop_oauth_key', '$(openssl rand -hex 32)') on conflict (name) do nothing;"
+  local realtime_ids
+  realtime_ids="$(docker ps -q --filter name=supabase_realtime_ || true)"
+  if [[ -n "$realtime_ids" ]]; then
+    docker restart $realtime_ids >/dev/null
+  fi
+  restore_migrations "$run_dir"
+
+  echo "control-crm: redis + serverless-redis-http on 127.0.0.1:3998"
+  docker network create "verify-crm-$run_id" >/dev/null
+  docker run -d --name "verify-crm-redis-$run_id" --network "verify-crm-$run_id" --network-alias redis \
+    "$REDIS_IMAGE" >/dev/null
+  local i
+  for i in $(seq 1 30); do
+    if docker exec "verify-crm-redis-$run_id" redis-cli ping 2>/dev/null | grep -q PONG; then
+      break
+    fi
+    sleep 1
+  done
+  docker run -d --name "verify-crm-srh-$run_id" --network "verify-crm-$run_id" -p 3998:80 \
+    -e SRH_MODE=env \
+    -e SRH_TOKEN=e2e-placeholder-nao-e-segredo \
+    -e SRH_CONNECTION_STRING=redis://redis:6379 \
+    "$SRH_IMAGE" >/dev/null
+
+  echo "control-crm: pnpm e2e:env (E2E_PORT=$PORT)"
+  E2E_PORT="$PORT" pnpm e2e:env
+  load_e2e_env
+  echo "control-crm: bootstrap owner"
+  pnpm exec tsx scripts/bootstrap-owner.ts
+  echo "control-crm: seed opencode/$MODEL_ID supports_tools=true"
+  OPENCODE_E2E_MODEL_ID="$MODEL_ID" OPENCODE_E2E_DISPLAY_NAME="$MODEL_NAME" \
+    pnpm exec tsx scripts/seed-e2e-catalogo-opencode.ts
+
+  echo "control-crm: pnpm e2e:build (NEXT_PUBLIC_* bake at build time)"
+  E2E_PORT="$PORT" pnpm e2e:build
+  if [[ ! -d "$ROOT/node_modules/playwright" ]]; then
+    echo "control-crm: playwright package missing" >&2
+    exit 1
+  fi
+  pnpm exec playwright install chromium
+
+  echo "control-crm: next start on $PORT"
+  load_e2e_env
+  setsid pnpm exec next start --port "$PORT" --hostname 127.0.0.1 >"$run_dir/app.log" 2>&1 &
+  local app_pid=$!
+  echo "$app_pid" >"$run_dir/app.pid"
+
+  echo "control-crm: worker (env from .env.e2e only; AI_INTEGRATION_BINDINGS unset)"
+  setsid pnpm exec tsx workers/agent-worker/main.ts >"$run_dir/worker.log" 2>&1 &
+  local worker_pid=$!
+  echo "$worker_pid" >"$run_dir/worker.pid"
+
+  cat >"$run_dir/instance.json" <<EOF
+{
+  "runId": "$run_id",
+  "port": $PORT,
+  "baseUrl": "http://127.0.0.1:$PORT",
+  "appPid": $app_pid,
+  "workerPid": $worker_pid,
+  "redisContainer": "verify-crm-redis-$run_id",
+  "srhContainer": "verify-crm-srh-$run_id",
+  "network": "verify-crm-$run_id",
+  "startedSupabase": true,
+  "modelId": "$MODEL_ID",
+  "displayName": "$MODEL_NAME",
+  "provider": "opencode"
+}
+EOF
+
+  local ready=""
+  for i in $(seq 1 60); do
+    local code
+    code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/login" || true)"
+    if [[ "$code" == "200" ]]; then
+      ready=1
+      break
+    fi
+    if ! pid_alive "$app_pid"; then
+      echo "control-crm: next start exited before /login returned 200. See $run_dir/app.log" >&2
+      exit 1
+    fi
+    sleep 2
+  done
+  if [[ -z "$ready" ]]; then
+    echo "control-crm: /login did not return 200 in 120s. See $run_dir/app.log" >&2
+    exit 1
+  fi
+  trap - ERR
+  echo "control-crm: ready run=$run_id url=http://127.0.0.1:$PORT/login"
+  echo "control-crm: catalog seeded opencode/$MODEL_ID with supports_tools. Doctor checks that row before a run."
+}
+
+cmd_doctor() {
+  local file
+  file="$(current_run_file)"
+  export VERIFY_CRM_INSTANCE="$file"
+  export VERIFY_CRM_ROOT="$ROOT"
+  cd "$ROOT"
+  pnpm exec tsx "$SKILL_DIR/scripts/doctor.ts"
+}
+
+cmd_drive() {
+  local feature="${1:-}"
+  if [[ "$feature" != "workbench-run" ]]; then
+    echo "control-crm: drive currently executes workbench-run. Other features are mapped and not auto-driven." >&2
+    exit 2
+  fi
+  if [[ -z "${VERIFY_CRM_MODEL_API_KEY:-}" && -n "${OPENCODE_API_KEY:-}" ]]; then
+    export VERIFY_CRM_MODEL_API_KEY="$OPENCODE_API_KEY"
+  fi
+  local file
+  file="$(current_run_file)"
+  export VERIFY_CRM_INSTANCE="$file"
+  export VERIFY_CRM_ROOT="$ROOT"
+  export VERIFY_CRM_EVIDENCE="$EVIDENCE_ROOT/$(json_get "$file" runId)"
+  export VERIFY_CRM_ARTIFACT="$ARTIFACT_ROOT/$(json_get "$file" runId)"
+  mkdir -p "$VERIFY_CRM_EVIDENCE" "$VERIFY_CRM_ARTIFACT"
+  cd "$ROOT"
+  pnpm exec tsx "$SKILL_DIR/scripts/drive-workbench-run.ts"
+}
+
+cmd_browser() {
+  local file
+  file="$(current_run_file)"
+  export VERIFY_CRM_INSTANCE="$file"
+  export VERIFY_CRM_ROOT="$ROOT"
+  export VERIFY_CRM_EVIDENCE="$EVIDENCE_ROOT/$(json_get "$file" runId)"
+  export VERIFY_CRM_ARTIFACT="$ARTIFACT_ROOT/$(json_get "$file" runId)"
+  mkdir -p "$VERIFY_CRM_EVIDENCE" "$VERIFY_CRM_ARTIFACT"
+  cd "$ROOT"
+  pnpm exec tsx "$SKILL_DIR/scripts/browser.ts" "$@"
+}
+
+cmd_observe() {
+  local file
+  file="$(current_run_file)"
+  export VERIFY_CRM_INSTANCE="$file"
+  export VERIFY_CRM_ROOT="$ROOT"
+  export VERIFY_CRM_EVIDENCE="$EVIDENCE_ROOT/$(json_get "$file" runId)"
+  export VERIFY_CRM_ARTIFACT="$ARTIFACT_ROOT/$(json_get "$file" runId)"
+  mkdir -p "$VERIFY_CRM_EVIDENCE/unreachable" "$VERIFY_CRM_ARTIFACT/unreachable"
+  cd "$ROOT"
+  pnpm exec tsx "$SKILL_DIR/scripts/observe-unreachable.ts"
+}
+
+cmd_cleanup() {
+  local dry=0
+  if [[ "${1:-}" == "--dry-run" ]]; then
+    dry=1
+  elif [[ -n "${1:-}" ]]; then
+    echo "control-crm: unknown cleanup argument: $1" >&2
+    exit 2
+  fi
+  local file
+  file="$(current_run_file)"
+  local run_id run_dir app_pid worker_pid redis srh network started
+  run_id="$(json_get "$file" runId)"
+  run_dir="$STATE_ROOT/$run_id"
+  app_pid="$(json_get "$file" appPid || true)"
+  worker_pid="$(json_get "$file" workerPid || true)"
+  redis="$(json_get "$file" redisContainer || true)"
+  srh="$(json_get "$file" srhContainer || true)"
+  network="$(json_get "$file" network || true)"
+  started="$(json_get "$file" startedSupabase || true)"
+  if [[ "$dry" == "1" ]]; then
+    echo "control-crm: dry-run would kill app pid ${app_pid:-none}"
+    echo "control-crm: dry-run would kill worker pid ${worker_pid:-none}"
+    echo "control-crm: dry-run would docker rm ${redis:-none} ${srh:-none}"
+    echo "control-crm: dry-run would docker network rm ${network:-none}"
+    echo "control-crm: dry-run would restore supabase/migrations if they were moved"
+    if [[ "$started" == "true" ]]; then
+      echo "control-crm: dry-run would supabase stop --no-backup"
+    fi
+    echo "control-crm: dry-run would remove $file"
+    echo "control-crm: dry-run kept evidence at $EVIDENCE_ROOT/$run_id and $ARTIFACT_ROOT/$run_id"
+    return 0
+  fi
+  if pid_alive "$app_pid"; then
+    kill "$app_pid" 2>/dev/null || true
+    sleep 1
+    pid_alive "$app_pid" && kill -9 "$app_pid" 2>/dev/null || true
+  fi
+  if pid_alive "$worker_pid"; then
+    kill "$worker_pid" 2>/dev/null || true
+    sleep 1
+    pid_alive "$worker_pid" && kill -9 "$worker_pid" 2>/dev/null || true
+  fi
+  if [[ -n "$redis" ]]; then docker rm -f "$redis" >/dev/null 2>&1 || true; fi
+  if [[ -n "$srh" ]]; then docker rm -f "$srh" >/dev/null 2>&1 || true; fi
+  if [[ -n "$network" ]]; then docker network rm "$network" >/dev/null 2>&1 || true; fi
+  restore_migrations "$run_dir"
+  if [[ "$started" == "true" ]]; then
+    local sb
+    sb="$(supabase_bin)"
+    (cd "$ROOT" && $sb stop --no-backup) || true
+  fi
+  rm -f "$file"
+  echo "control-crm: cleaned run $run_id. Evidence kept at $EVIDENCE_ROOT/$run_id and $ARTIFACT_ROOT/$run_id"
+}
+
+cmd_status() {
+  local file
+  file="$(current_run_file)"
+  cat "$file"
+  echo
+}
+
+main() {
+  local cmd="${1:-}"
+  shift || true
+  case "$cmd" in
+    launch) cmd_launch ;;
+    doctor) cmd_doctor ;;
+    drive) cmd_drive "$@" ;;
+    browser) cmd_browser "$@" ;;
+    observe-unreachable) cmd_observe ;;
+    cleanup) cmd_cleanup "$@" ;;
+    status) cmd_status ;;
+    ""|-h|--help|help) usage ;;
+    *) echo "unknown command: $cmd" >&2; usage; exit 2 ;;
+  esac
+}
+
+main "$@"

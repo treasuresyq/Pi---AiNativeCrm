@@ -80,7 +80,7 @@ This is local execution of a new fixture engine. It is not a deployment or execu
 
 The production repository has immutable organization-memory versions and a current pointer. The lab's customer-scoped snapshots and `expectedVersion` conflict rejection are illustrative lab protections, not a claim that the current production memory publication API implements that concurrency contract.
 
-No application script invokes a model API, HTTP transport, customer-send worker, external CDN, telemetry or credential form. Model/provider are `null`, tokens are not applicable, and model/service spend is USD 0 because none is called. This does not estimate hosting or browser costs. Source links open GitHub only when selected by the visitor.
+No application script invokes a model API, HTTP transport, customer-send worker, external CDN, telemetry or credential form. Model/provider are `null`, tokens are not applicable, and model/service spend is USD 0 because none is called. This does not estimate hosting or browser costs. Source provenance is retained as non-interactive text. Visitor-facing source, evidence, version, and service panels contain no outbound repository navigation.
 
 ## Evidence provenance
 
@@ -88,7 +88,7 @@ The **本次 Trace** panel shows events actually executed by this local fixture 
 
 The separate **历史模型证据** panel contains minimized factual excerpts from the already-committed report:
 
-- Repository: `ydflow/pi-native-crm`
+- Repository: `helsome/AiNativeCrm`
 - Inspected production reference: `fc80b14dc88406ab6f5e6ec3ed9ca61d632c0674`
 - Report: `docs/testing/multi-agent-eval-real-run-2026-09-28.md`
 - Recorded model: `opencode / space-bunny-free`, date 2026-09-28
@@ -146,3 +146,33 @@ re-authorized observed evidence and computed Eval reasons, and exposes Mission c
 pause/resume. The lab's generic whole-workflow pause, arbitrary customer-memory CAS, business-policy
 validity/supersession fixtures and raw local JSON export still have different production semantics.
 A chat-model Key alone does not provision embeddings, indexed sources, workers or customer channels.
+
+
+## Motion preview parity (2026-10-04)
+
+This remains a static, synthetic preview with no CRM/model/provider connection. It preserves the 62 routes, 55 catalog targets, 15 direct sidebar destinations, four hubs, capability lab, approvals and service-boundary examples.
+
+- Task entry: 160 ms / 5 px, once for a locally submitted task. Stable task/result nodes; polling, synthetic status updates and history do not replay entry.
+- Composer press: 100 ms / 0.97 scale, immediate submit; Enter, Shift+Enter and IME remain supported.
+- Evidence, tool trace, Eval and memory-source disclosures: 190 ms, native buttons with aria-expanded/aria-controls; closed content is immediately inert and aria-hidden, with collapse focus return.
+- The initial receipt is explicitly queued; running starts only when the synthetic context-read event occurs. Completed/cancelled states update immediately. There are no typing/progress loops.
+- Reading position is preserved outside the 48 px bottom-follow window. System reduced-motion preferences disable transforms and transitions.
+- Published Site assets were scanned for personal names/emails, secret material, source maps and raw run identifiers. All contacts and displayed fixture references on the public Site are fictional; the historical report keeps aggregate provenance but omits its internal run ID. No screenshot/source map is shipped in dist.
+
+Validation: npm test includes a dedicated motion/privacy DOM regression suite. Browser infrastructure was unavailable (Chromium socket permission and cloud loopback access), so no pixel-layout, timing-film, touch keyboard or signed-out live-browser claim is made.
+
+
+### Public and repository preview boundaries
+
+The published Site at https://pinative-crm-demo.free-ball-7539.chatgpt.site is version 8, public, with source `f001e680691de5466d5358507a2df3b0e1df5a96`. It is a privacy-minimized static preview. Its motion files and shared base renderer match this folder; this is **not** a claim that the entire published Site and this repository preview are byte-identical.
+
+This repository retains the previously committed `real-recordings.js`, replay UI, recording regression test and the source JSON fixture. They were not copied into the public Site, which retains synthetic interactive scenarios and the older aggregate report excerpt with its internal Run ID hidden. No recorded-real-model replay was added to the public audience. Public publishing does not make the real CRM, provider configuration, database or authentication endpoints public.
+
+The new motion suite checks the shared files in both variants. Existing real-recording regression tests remain authoritative for repository-only playback. Motion timing and focus are DOM/CSS assertions; no signed-out browser or rendered-pixel proof is claimed.
+
+
+## Visitor navigation (2026-10-04)
+
+Repository source/evidence links in the runtime lab, historical report, inspection and service panels are plain-text references. No GitHub navigation, external-link icon or outbound source control is rendered. Source commit IDs, labels and source paths remain available as provenance. All 62 routes, local actions, motion, synthetic-data notices and access boundaries are unchanged.
+
+`tests/no-outbound-links-dom.cjs` executes the shipped scripts, scans generated navigation after visiting every route and its action dialogs/tabs, and checks inspection/service/lab states, escaped Markdown/HTML and zero external navigation. This is DOM execution, not visual-browser pixel testing.

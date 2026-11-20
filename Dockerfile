@@ -86,8 +86,8 @@ WORKDIR /app
 # OCI via docker/metadata-action; estes aqui são defesa em profundidade — valem
 # para qualquer build, inclusive o local de docker-compose.build.yml, que não
 # passa pelo metadata-action e sem isto sairia sem origem nenhuma.
-LABEL org.opencontainers.image.source="https://github.com/ydflow/pi-native-crm" \
-      org.opencontainers.image.title="Pi Native CRM" \
+LABEL org.opencontainers.image.source="https://github.com/treasuresyq/AiNativeCrm" \
+      org.opencontainers.image.title="AI Native CRM" \
       org.opencontainers.image.licenses="MIT"
 
 # A versão que /api/v1/health reporta (invariante 7). Precisa vir por ARG: a

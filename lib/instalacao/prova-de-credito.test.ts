@@ -48,10 +48,39 @@ describe("montarRequisicaoDeProva", () => {
   });
 
   it("OpenCode Zen cobra pela API Chat Completions compatível com OpenAI", () => {
-    const opencode = montarRequisicaoDeProva("opencode", "zen-key", "space-bunny-free");
-    expect(opencode?.url).toBe("https://opencode.ai/zen/v1/chat/completions");
-    expect(opencode?.headers.authorization).toBe("Bearer zen-key");
-    expect(opencode?.body).toMatchObject({ model: "space-bunny-free", max_tokens: 1 });
+    const base = process.env.OPENCODE_BASE_URL;
+    const session = process.env.OPENCODE_SESSION;
+    delete process.env.OPENCODE_BASE_URL;
+    delete process.env.OPENCODE_SESSION;
+    try {
+      const opencode = montarRequisicaoDeProva("opencode", "zen-key", "space-bunny-free");
+      expect(opencode?.url).toBe("https://opencode.ai/zen/v1/chat/completions");
+      expect(opencode?.headers.authorization).toBe("Bearer zen-key");
+      expect(opencode?.headers["x-opencode-session"]).toBe("crm");
+      expect(opencode?.body).toMatchObject({ model: "space-bunny-free", max_tokens: 1 });
+    } finally {
+      if (base === undefined) delete process.env.OPENCODE_BASE_URL;
+      else process.env.OPENCODE_BASE_URL = base;
+      if (session === undefined) delete process.env.OPENCODE_SESSION;
+      else process.env.OPENCODE_SESSION = session;
+    }
+  });
+
+  it("OpenCode segue OPENCODE_BASE_URL e a sessão da instalação", () => {
+    const base = process.env.OPENCODE_BASE_URL;
+    const session = process.env.OPENCODE_SESSION;
+    process.env.OPENCODE_BASE_URL = "https://opencode.ai/zen/go/v1/";
+    process.env.OPENCODE_SESSION = "verify-crm";
+    try {
+      const opencode = montarRequisicaoDeProva("opencode", "go-key", "cat-jam-free");
+      expect(opencode?.url).toBe("https://opencode.ai/zen/go/v1/chat/completions");
+      expect(opencode?.headers["x-opencode-session"]).toBe("verify-crm");
+    } finally {
+      if (base === undefined) delete process.env.OPENCODE_BASE_URL;
+      else process.env.OPENCODE_BASE_URL = base;
+      if (session === undefined) delete process.env.OPENCODE_SESSION;
+      else process.env.OPENCODE_SESSION = session;
+    }
   });
 
   it("provedor desconhecido não recebe 'ok' por omissão", () => {

@@ -705,6 +705,23 @@ url_do_schema() {
   printf '%s' "${SUPABASE_DB_ADMIN_URL:-${SUPABASE_DB_URL:?sem connection string de banco no .env — rode o install.sh}}"
 }
 
+# O papel da consulta é sem login e sem escrita. A conexão do app já existe;
+# identificar sua role no servidor evita interpretar URLs de pooler ou imprimir
+# credenciais. A conexão administrativa só concede a role limitada ao app.
+provisionar_leitura_ontology() {
+  local papel_app resultado arquivo_check
+  arquivo_check="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/supabase/ontology-role-check.sql"
+  [ -f "$arquivo_check" ] || return 1
+  if ! docker run --rm postgres:17-alpine psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 -c 'begin read only; set local role ontology_reader; rollback' >/dev/null 2>&1; then
+    papel_app="$(docker run --rm postgres:17-alpine psql "$SUPABASE_DB_URL" -X -At -v ON_ERROR_STOP=1 -c 'select current_user' 2>/dev/null)" || return 1
+    [ -n "$papel_app" ] || return 1
+    printf '%s\n' "select format('grant ontology_reader to %I', :'papel_app') \gexec" |
+      docker run --rm -i postgres:17-alpine psql "$(url_do_schema)" -X -v ON_ERROR_STOP=1 -v "papel_app=$papel_app" >/dev/null 2>&1 || return 1
+  fi
+  resultado="$(docker run --rm -i postgres:17-alpine psql "$SUPABASE_DB_URL" -X -qAt -v ON_ERROR_STOP=1 < "$arquivo_check" 2>/dev/null)" || return 1
+  [ "$resultado" = 'ok' ]
+}
+
 # psql efêmero via container (não exige psql no host). Usa a conexão de schema:
 # os chamadores mexem em `auth.mfa_factors` e `private.app_secrets`, fora do
 # alcance de uma role de app com grants só em `public`.
@@ -877,7 +894,7 @@ ler_rodada_do_banco() {
 # `publish-image.yml` digam o mesmo. Se você é um fork, é lá que está a lista do
 # que trocar junto — e, desde 18/09/2026, o CI do SEU fork não cobra este valor:
 # a asserção só vale quando o dono do runner é o dono deste repositório.
-IMG_NS="ghcr.io/ydflow"
+IMG_NS="ghcr.io/treasuresyq"
 IMG_APP="${IMG_NS}/pi-native-crm"
 IMG_WORKER="${IMG_NS}/pi-native-crm-worker"
 IMG_SCHEDULER="${IMG_NS}/pi-native-crm-scheduler"
@@ -897,7 +914,7 @@ IMG_VOICE_AGENT="${IMG_NS}/pi-native-crm-voice-agent"
 # alguém porque não deu para resolver um número de versão seria trocar um
 # problema de previsibilidade por um de disponibilidade.
 ultima_versao_publicada() {
-  local url="${1:-https://github.com/ydflow/pi-native-crm.git}" ref
+  local url="${1:-https://github.com/treasuresyq/AiNativeCrm.git}" ref
   command -v git >/dev/null 2>&1 || return 0
   # `grep -v -- -` descarta PRERELEASE (v1.11.0-rc1, v1.1.1-jmpo.1 — esta última
   # existe de verdade neste repo). O `--sort=-v:refname` do git põe o prerelease
@@ -918,15 +935,15 @@ ultima_versao_publicada() {
 # com `image:` falha a operação inteira, a instalação morre no passo de subir.
 #
 # ⚠️ O DONO E O REGISTRO SAEM DO `IMG_NS`, NUNCA DE UM LITERAL. Achado por
-# contribuidor no PR #605: as duas URLs abaixo tinham `ydflow` cravado. Num
+# contribuidor no PR #605: as duas URLs abaixo tinham `helsome` cravado. Num
 # fork que troca o `IMG_NS`, isso faz o pré-voo conferir os pacotes do UPSTREAM
 # enquanto `gravar_imagens` escreve no `.env` do cliente as referências do FORK
 # — a sonda mede um caminho e o usuário usa outro, que é a falha-em-verde do
 # passe 5 da triagem.
 #
 # E o literal escapava da catraca por acidente: `namespace-das-imagens.test.ts`
-# procura a string contígua `ghcr.io/ydflow`, e a URL do token a parte em
-# `ghcr.io/token?scope=repository:ydflow/`.
+# procura a string contígua do namespace configurado, e a URL do token a parte em
+# `ghcr.io/token?scope=repository:<dono>/`.
 ghcr_status() {
   local img="$1" tag="$2" tok registry owner
   registry="${IMG_NS%%/*}"

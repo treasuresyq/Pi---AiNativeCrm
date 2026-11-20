@@ -228,18 +228,11 @@ const GATILHO_ESPERADO: Record<string, { condicao: string | null; efeito: string
     condicao: null,
     efeito: "Este é o check obrigatório `build-and-size` (`pnpm build` em Node 22).",
   },
-  "perf.yml::security-regression": {
-    condicao: null,
-    efeito:
-      "Valida tipos, anotações e autorização MCP, fronteiras de cron/Feishu e o audit " +
-      "de dependências de produção em Node 22. Sem ele uma falha nas cercas gerais " +
-      "poderia esconder uma regressão de segurança; não há interruptor de job.",
-  },
 
   // --- e o que legitimamente tem interruptor -----------------------------------
   "acolhida.yml::acolher": {
     condicao:
-      "github.repository_owner == 'ydflow' && " +
+      "github.repository_owner == 'helsome' && " +
       "github.event.pull_request.head.repo.full_name != github.repository",
     efeito:
       "Este job posta a acolhida automática em PR de fork — a resposta em minutos que existe " +
@@ -254,6 +247,30 @@ const GATILHO_ESPERADO: Record<string, { condicao: string | null; efeito: string
       "Este é o relógio que bate o cron. A condição aqui é um interruptor DELIBERADO " +
       "(`vars.RELOGIO_LIGADO`), não uma adaptação de fork — mas ela fica no mapa para " +
       "que trocar a variável por outra coisa continue passando por revisão.",
+  },
+
+  // Já estavam no disco quando o mapa foi escrito. Sem a entrada, `pnpm cercas`
+  // reprova a `main`. A condição é a que o YAML já declara; este mapa não muda o job.
+  "verify-crm-maintain.yml::manter": {
+    condicao:
+      "github.repository == 'helsome/AiNativeCrm' || github.event_name == 'workflow_dispatch'",
+    efeito:
+      "Este job é a manutenção diária do verify-crm. Desligá-lo faz o cron deixar de " +
+      "medir launch, doctor e drive; o `if` só impede o fork de herdar o schedule.",
+  },
+  "verify-crm-pr.yml::provar": {
+    condicao:
+      "github.repository == 'helsome/AiNativeCrm' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)",
+    efeito:
+      "Este job dirige o workbench-run antes do merge, só neste repositório. Desligá-lo " +
+      "faz o PR que mexe no harness sair sem essa prova, e o `if` recusa fork.",
+  },
+  "verify-crm-verifier.yml::dirigir": {
+    condicao:
+      "github.event.workflow_run.event == 'pull_request' && github.repository == 'helsome/AiNativeCrm'",
+    efeito:
+      "Este job comenta o veredito depois do `ci`. Desligá-lo faz o verde do ci.yml " +
+      "voltar a ser lido como veredito. O `if` não corre em push da main nem em fork.",
   },
 };
 

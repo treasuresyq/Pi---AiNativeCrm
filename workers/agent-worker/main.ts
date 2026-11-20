@@ -1,3 +1,5 @@
+import { runCustomerMemoryExtraction } from "@/lib/ai/customer-memory/extraction";
+import { runCustomerMemoryConsolidation } from "@/lib/ai/customer-memory/consolidation";
 import { createApprovedReplyHandler } from "@/lib/agent-engine/agent/approved-reply";
 import { turnKnobsFromEnv } from "@/lib/agent-engine/agent/turn-knobs";
 import { createMeetDeliveryHandler } from "@/lib/agent-engine/agent/meet-delivery";
@@ -47,10 +49,9 @@ Sentry.init({
 
   // No Sentry da comunidade, só erro (issue #100). Ver isCommunityDsn().
   tracesSampleRate: sentryCommunity ? 0 : 1,
-  enableLogs: true,
-  sendDefaultPii: false,
 
   ...sentryScrubHooks,
+  beforeSendSpan: Sentry.withStaticSpan(sentryScrubHooks.beforeSendSpan),
 });
 
 // Transparência de telemetria (mesma mensagem de sentry.server.config.ts,
@@ -303,9 +304,11 @@ export async function startWorker(
   await reconcileDeadFeishuQuestionJobs(pool);
   await expireFeishuQuestionPayloads(pool);
   await reconcileWorkbenchSendDecisions(pool, 20, (failure) =>
-    log.error("workbench 发送决定续跑恢复失败", failure));
+    log.error("workbench 发送决定续跑恢复失败", failure),
+  );
   await reconcileStaleWorkbenchApprovedActions(pool, 20, (failure) =>
-    log.error("workbench 已批准动作结果对账失败", failure));
+    log.error("workbench 已批准动作结果对账失败", failure),
+  );
 
   // O comportamento da INSTALAÇÃO entra no processo ANTES dos laços que
   // consomem turnos: a releitura abaixo só acontece no primeiro tique do reaper
@@ -342,9 +345,11 @@ export async function startWorker(
         await reconcileDeadFeishuQuestionJobs(pool);
         await expireFeishuQuestionPayloads(pool);
         await reconcileWorkbenchSendDecisions(pool, 20, (failure) =>
-          log.error("workbench 发送决定续跑恢复失败", failure));
+          log.error("workbench 发送决定续跑恢复失败", failure),
+        );
         await reconcileStaleWorkbenchApprovedActions(pool, 20, (failure) =>
-          log.error("workbench 已批准动作结果对账失败", failure));
+          log.error("workbench 已批准动作结果对账失败", failure),
+        );
       })
       .catch((err: unknown) => log.error("reaper falhou", { error: errMsg(err) }));
   }, env.QUEUE_REAPER_INTERVAL_MS);
@@ -754,6 +759,12 @@ export async function main(): Promise<void> {
   );
   handlers.set("internal_im_event", (job, pool) => runFeishuInboxJob(job, pool));
   handlers.set("internal_im_question", (job, pool) => runFeishuQuestionJob(job, pool));
+  handlers.set("customer_memory_extract", (job, pool, { workerId }) =>
+    runCustomerMemoryExtraction(pool, turnDeps.llmCfg, job, workerId),
+  );
+  handlers.set("customer_memory_consolidate", (job, pool, { workerId }) =>
+    runCustomerMemoryConsolidation(pool, job, workerId),
+  );
   await startWorker(env, handlers, log);
 }
 

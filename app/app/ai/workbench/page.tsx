@@ -70,6 +70,7 @@ export default async function AgentCrmWorkbenchPage({
         <p role="alert">加载内置 Agent 失败，请刷新重试。</p>
       ) : (
         <AgentCrmWorkbench
+          readOnly={user.support?.access_mode === "support_readonly"}
           initialLead={
             initialLead
               ? {

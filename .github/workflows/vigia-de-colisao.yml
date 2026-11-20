@@ -1,3 +1,4 @@
+# CI paused 2026-10-25 (Actions minutes exhausted). Restore the original triggers to re-enable.
 name: vigia-de-colisao
 
 # O verde de um PR de schema é uma FOTO, e o número dele pode ser tomado depois.
@@ -19,8 +20,6 @@ name: vigia-de-colisao
 # De hora em hora é ruído; de 6 em 6 horas é tarde para uma fila que vira em um
 # dia. 2h é o meio-termo declarado, não medido — e o custo é um job de segundos.
 on:
-  schedule:
-    - cron: "17 */2 * * *"
   workflow_dispatch: {}
 
 # `pull-requests: write` é o mínimo que comenta e rotula. Sem o bloco, o token

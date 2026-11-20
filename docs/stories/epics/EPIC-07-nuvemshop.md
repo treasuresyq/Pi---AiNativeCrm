@@ -34,7 +34,7 @@ exposes_contracts:
   - "route./app/integrations/nuvemshop"
 status: completed
 created_at: 2026-04-28
-owner: ydflow
+owner: helson
 ---
 
 # EPIC-07 — Nuvemshop Integration

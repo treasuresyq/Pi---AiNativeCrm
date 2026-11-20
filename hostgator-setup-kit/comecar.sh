@@ -9,15 +9,15 @@
 #
 # Uso:
 #   bash comecar.sh
-#   curl -fsSL https://raw.githubusercontent.com/ydflow/pi-native-crm/main/hostgator-setup-kit/comecar.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/treasuresyq/AiNativeCrm/main/hostgator-setup-kit/comecar.sh | bash
 #
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/ydflow/pi-native-crm.git}"
+REPO_URL="${REPO_URL:-https://github.com/treasuresyq/AiNativeCrm.git}"
 # Link de parceria com a HostGator. Mesma URL e mesmo rótulo do README: uma
 # promessa só, num lugar só — duas redações da mesma oferta viram duas ofertas.
 VPS_URL="https://www.hostgator.com.br/52708-141-3-52.html"
-COMUNIDADE_URL="https://github.com/ydflow/pi-native-crm/discussions"
+COMUNIDADE_URL="https://github.com/treasuresyq/AiNativeCrm/discussions"
 
 # ── Aparência ───────────────────────────────────────────────────────────────
 # Gêmeas das do install.sh (que por sua vez é standalone porque roda antes do

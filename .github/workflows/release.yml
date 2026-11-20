@@ -1,3 +1,4 @@
+# CI paused 2026-10-25 (Actions minutes exhausted). Restore the original triggers to re-enable.
 name: release
 
 # Fluxo mantido apenas para acionamento manual. Pushes na `main` não executam
@@ -474,7 +475,7 @@ jobs:
       # a nossa. A release em si já saiu quando este passo roda — vermelho aqui
       # quer dizer "a vitrine não mostra", não "a versão não existe".
       - name: A versão aparece na página de changelog da LP?
-        if: steps.pendente.outputs.cortar == 'sim' && github.repository == 'ydflow/pi-native-crm'
+        if: steps.pendente.outputs.cortar == 'sim' && github.repository == 'treasuresyq/AiNativeCrm'
         # O teto cobre o pior caso, para o diagnóstico rodar antes de o GitHub matar o passo:
         # 35 tentativas × (3 páginas × 10 s de curl + 50 s de espera) ≈ 47 min, mais o
         # diagnóstico e as páginas das versões. Com 40 min e curl de 30 s, um site que aceita a

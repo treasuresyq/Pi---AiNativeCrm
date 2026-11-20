@@ -391,6 +391,7 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
       actor: auth.actor,
       apiTokenId: ephemeral.id,
       requestId: run.id,
+      ontologyRuntime: { versionId: run.agent_version_id, runId: run.id, pipelineIds: (version as { pipeline_ids?: string[] }).pipeline_ids ?? [] },
       supabase: admin,
     };
     const handoffSignal: RuntimeHandoffSignal = { triggered: false };

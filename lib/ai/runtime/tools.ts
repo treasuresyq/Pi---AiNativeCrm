@@ -71,7 +71,7 @@ function wrapMcpTool(
   const wrapped = tool({
     description: def.description,
     inputSchema,
-    execute: async (args: unknown) => {
+    execute: async (args: unknown, options) => {
       const startedAt = Date.now();
       // ── O UUID QUE O MODELO INVENTA PARA "NÃO SEI" ────────────────────────
       //
@@ -176,7 +176,10 @@ function wrapMcpTool(
           return { permitido: false, motivo: veredito.motivo, mensagem: explicacao };
         }
 
-        const result = await def.handler(argsRecord as never, input.ctx);
+        const context = input.ctx.ontologyRuntime
+          ? { ...input.ctx, ontologyRuntime: { ...input.ctx.ontologyRuntime, signal: options.abortSignal ?? input.ctx.ontologyRuntime.signal } }
+          : input.ctx;
+        const result = await def.handler(argsRecord as never, context);
 
         // Capture handoff signal so the runtime can short-circuit the loop.
         if (def.name === HANDOFF_TOOL_NAME) {
@@ -240,6 +243,14 @@ function wrapMcpTool(
         // — o modelo não tinha como saber que o papel era DELE, não do leitor. A
         // mensagem original continua no log e na observabilidade acima, onde
         // serve; para o modelo vai uma instrução que já sabe o que é.
+        if (def.name.startsWith("ontology_")) {
+          return {
+            kind: "ontology_observation",
+            status: "unanswerable",
+            degraded: true,
+            missing: [err instanceof McpAuthError ? "Acesso semântico recusado." : "Serviço semântico indisponível."],
+          };
+        }
         if (err instanceof McpAuthError) {
           return { error: recusaDeCapacidadeParaOModelo(def.name) };
         }

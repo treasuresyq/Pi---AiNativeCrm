@@ -66,4 +66,10 @@ describe("auditMcpToolCall", () => {
     expect(e.metadata.args.cpf).toBe("[redacted]");
     expect(e.metadata.args.query).toBe("joana");
   });
+  it("omite a pergunta semântica da auditoria", async () => {
+    await auditMcpToolCall({ ctx, toolName: "ontology_query", args: { question: "email privado", assumption: { currency: "BRL" } }, durationMs: 1, success: true });
+    expect(JSON.stringify(auditSpy.mock.calls[0]![0].metadata)).not.toContain("email privado");
+    expect(auditSpy.mock.calls[0]![0].metadata.args.has_assumption).toBe(true);
+  });
+
 });

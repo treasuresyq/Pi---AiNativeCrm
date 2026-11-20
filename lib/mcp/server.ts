@@ -46,9 +46,8 @@ export function createMcpServer(auth: McpAuthResult, requestId: string): McpServ
       {
         description: tool.description,
         inputSchema: tool.inputSchema,
-        annotations: tool.annotations,
       },
-      async (rawArgs) => {
+      async (rawArgs, extra) => {
         const startedAt = Date.now();
         // A MESMA higiene do outro ingresso (`lib/ai/runtime/tools.ts`), pela
         // mesma razão: um uuid de aterro em campo opcional vira filtro por um
@@ -67,6 +66,7 @@ export function createMcpServer(auth: McpAuthResult, requestId: string): McpServ
           actor: auth.actor,
           apiTokenId: auth.apiTokenId,
           requestId,
+          signal: extra.signal,
           supabase,
         };
 

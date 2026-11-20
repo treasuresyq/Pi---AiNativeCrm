@@ -3,7 +3,7 @@ title: pi-native-crm — Catálogo de Regras de Negócio
 version: 0.1
 status: em revisão
 date: 2026-04-28
-owner: ydflow
+owner: helson
 ---
 
 # pi-native-crm — Catálogo de Regras de Negócio

@@ -2965,15 +2965,17 @@ NEXT_PUBLIC_APP_URL='https://crm.exemplo.com.br'"
 ) || fail=1
 rm -rf "$TMP_AVISO"
 
-echo "DDL: nenhum script do kit manda a string do APP para o Postgres"
+echo "DDL: scripts do kit usam conexão administrativa; sondas de leitura usam a do app"
 # A guarda de CLASSE. Os três cenários acima provam o install.sh e o update.sh
 # pelo comportamento; esta linha alcança os irmãos que nenhuma fixture roda
 # (backup.sh, restore.sh, reset-mfa.sh via psql_run) — onde o mesmo defeito
 # reapareceria sem ninguém ver. Um sítio que volte a `psql "$SUPABASE_DB_URL"`
-# reprova aqui.
+# reprova aqui; apenas as duas sondas de leitura do provisionamento são exceções.
 # `--exclude` para não casar as próprias frases deste arquivo — que fala do
 # defeito para explicá-lo, e ficaria eternamente vermelho por citar o que vigia.
-sobrando="$(grep -nE --exclude='test-validators.sh' '(psql|pg_dump) "\$SUPABASE_DB_URL"' ./*.sh 2>/dev/null || true)"
+sobrando="$(grep -nE --exclude='test-validators.sh' '(psql|pg_dump) "\$SUPABASE_DB_URL"' ./*.sh 2>/dev/null |
+  grep -vE "^\./_common\.sh:[0-9]+:  papel_app=.*-c 'select current_user'" |
+  grep -vE '^\./_common\.sh:[0-9]+:  resultado=.*-X -qAt -v ON_ERROR_STOP=1 < "\$arquivo_check"' || true)"
 convertidos="$(grep -hoE --exclude='test-validators.sh' '(psql|pg_dump) "\$\(url_do_schema\)"' ./*.sh 2>/dev/null | grep -c . || true)"
 if [ -n "$sobrando" ]; then
   printf '  ✗ script do kit ainda manda a string do app para o Postgres:\n'
@@ -3511,6 +3513,33 @@ if [ -n "$crases_no_sql" ]; then
 else
   printf '  ✓ o heredoc do bootstrap do dono está livre de crase\n'
 fi
+
+echo "ontology: provisiona role usando o usuário efetivo e SQL citado"
+(
+  export SUPABASE_DB_URL='postgresql://synthetic-app'
+  export SUPABASE_DB_ADMIN_URL='postgresql://synthetic-admin'
+  pasta="$(mktemp -d)"
+  docker() {
+    case " $* " in
+      *" select current_user "*) printf '%s\n' 'agent.worker' ;;
+      *" set local role ontology_reader; "*) [ "${ROLE_SET_OK:-0}" = 1 ] ;;
+      *" -qAt "*) cat >/dev/null; printf '%s\n' "${ROLE_CHECK_RESULT:-ok}" ;;
+      *) printf '%s\n' "$@" > "$pasta/args"; cat > "$pasta/sql" ;;
+    esac
+  }
+  provisionar_leitura_ontology || exit 1
+  grep -Fx -- 'papel_app=agent.worker' "$pasta/args" >/dev/null || exit 1
+  grep -F "format('grant ontology_reader to %I', :'papel_app')" "$pasta/sql" >/dev/null || exit 1
+  rm -f "$pasta/args" "$pasta/sql"
+  ROLE_SET_OK=1; export ROLE_SET_OK
+  provisionar_leitura_ontology || exit 1
+  [ ! -e "$pasta/args" ] && [ ! -e "$pasta/sql" ] || exit 1
+  ROLE_SET_OK=0; export ROLE_SET_OK
+  ROLE_CHECK_RESULT=failed; export ROLE_CHECK_RESULT
+  if provisionar_leitura_ontology; then exit 1; fi
+  rm -rf "$pasta"
+  printf '  ✓ role efetiva e identificador citado no grant\n'
+) || { printf '  ✗ falha ao provisionar a role de leitura\n'; fail=1; }
 
 echo
 if [ "$fail" = 0 ]; then echo "todos os validadores passaram"; else echo "FALHOU"; fi

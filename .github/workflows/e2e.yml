@@ -1,3 +1,4 @@
+# CI paused 2026-10-25 (Actions minutes exhausted). Restore the original triggers to re-enable.
 name: e2e
 
 # Issue #63: as specs de tests/e2e/ não rodavam em lugar nenhum. Este job fecha o
@@ -32,10 +33,7 @@ name: e2e
 # job inteiro e reportou VERDE com o `supabase start` quebrado e zero teste
 # executado. Verde que não distingue "passou" de "nem rodou" é pior que vermelho.
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 # O GITHUB_TOKEN deste job serve a `actions/checkout` (clone) e a
 # `actions/setup-node` (manifest de `actions/node-versions`, repo público).
@@ -1085,7 +1083,13 @@ jobs:
       # Esta spec também usa o provider real da organização de demonstração
       # para validar submissão estruturada e assertivas de campos do CRM; o CI
       # compartilhado não deve chamá-lo nem gastar credenciais externas.
+      # customer-memory-loop requires an explicitly isolated SUPABASE_DB_URL,
+      # real local baseline and bootstrap profile; standard CI does not provision
+      # that direct-SQL fixture. Run via its documented local acceptance command.
+      # ontology: requer endpoint sintético OPENROUTER_BASE_URL antes de iniciar o app; validado em job dedicado.
       FORA_DO_CI: >-
+        agent-workbench-ontology.spec.ts
+        customer-memory-loop.spec.ts
         inbox-tempo-real.spec.ts
         cadastro-sem-confirmacao-de-email.spec.ts
         aviso-de-caso-chega-no-whatsapp.spec.ts

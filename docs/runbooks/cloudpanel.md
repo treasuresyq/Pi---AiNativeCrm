@@ -58,7 +58,7 @@ CRM que abre a tela de login e não deixa ninguém entrar.
 
 ```bash
 cd /var/www
-git clone https://github.com/ydflow/pi-native-crm.git pi-native-crm
+git clone https://github.com/treasuresyq/AiNativeCrm.git AiNativeCrm
 cd /var/www/pi-native-crm
 cp .env.hostgator.example .env
 nano .env

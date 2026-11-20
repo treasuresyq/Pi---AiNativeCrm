@@ -54,6 +54,8 @@ function fetchFalso(respostas: Record<string, { status: number; body?: unknown }
 beforeEach(() => {
   // Quem define a variável é o caso; nenhum caso herda a do anterior.
   delete envMock.OPENROUTER_BASE_URL;
+  delete envMock.OPENCODE_BASE_URL;
+  delete envMock.OPENCODE_SESSION;
 });
 
 afterEach(() => {
@@ -81,7 +83,60 @@ describe("validateOpenCodeKey", () => {
       "https://opencode.ai/zen/v1/models",
       expect.objectContaining({
         method: "GET",
-        headers: { Authorization: "Bearer zen-test-key" },
+        headers: {
+          Authorization: "Bearer zen-test-key",
+          "x-opencode-session": "crm",
+        },
+      }),
+    );
+  });
+
+  it("usa OPENCODE_BASE_URL e a sessão configurada", async () => {
+    envMock.OPENCODE_BASE_URL = "https://opencode.ai/zen/go/v1/";
+    envMock.OPENCODE_SESSION = "verify-crm";
+    const fetchMock = vi.fn(
+      async () =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () => ({ data: [{ id: "cat-jam-free" }] }),
+        }) as unknown as Response,
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(validateOpenCodeKey("go-test-key")).resolves.toEqual({
+      ok: true,
+      models: ["cat-jam-free"],
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://opencode.ai/zen/go/v1/models",
+      expect.objectContaining({
+        headers: {
+          Authorization: "Bearer go-test-key",
+          "x-opencode-session": "verify-crm",
+        },
+      }),
+    );
+  });
+
+  it("OPENCODE_BASE_URL vazia continua no Zen", async () => {
+    envMock.OPENCODE_BASE_URL = "";
+    envMock.OPENCODE_SESSION = "";
+    const fetchMock = vi.fn(
+      async () =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () => ({ data: [] }),
+        }) as unknown as Response,
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await validateOpenCodeKey("zen-test-key");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://opencode.ai/zen/v1/models",
+      expect.objectContaining({
+        headers: expect.objectContaining({ "x-opencode-session": "crm" }),
       }),
     );
   });

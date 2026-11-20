@@ -1,3 +1,4 @@
+# CI paused 2026-10-25 (Actions minutes exhausted). Restore the original triggers to re-enable.
 name: Publicar imagem Docker (GHCR)
 
 # Builda as imagens GENÉRICAS que o self-hoster instala e publica no GitHub
@@ -19,12 +20,9 @@ name: Publicar imagem Docker (GHCR)
 # defeito no dia em que o módulo for instalado por um self-hoster de verdade.
 
 on:
-  # Pull requests continuam construindo e descartando as imagens como gate.
-  # Push de tag `v*` publica a imagem da versão e move o canal `stable`;
-  # workflow_dispatch fica para publicações manuais deliberadas.
-  pull_request:
-  push:
-    tags: ["v*"]
+  # Publicação deliberadamente manual neste repositório interno.
+  # Pull requests continuam construindo e descartando as imagens como gate;
+  # nenhum push/tag envia imagens ao GHCR.
   workflow_dispatch: {}
   # NÃO acrescente `release: types: [published]` aqui. Ele já esteve, e o efeito
   # foi medido na v1.3.0: `gh release create` empurra a tag E publica a release,
@@ -340,7 +338,7 @@ jobs:
             -e SUPABASE_SERVICE_ROLE_KEY=chave-de-mentira \
             -e SUPABASE_DB_URL=postgres://u:p@127.0.0.1:5432/postgres \
             -e SENTRY_DSN=off \
-            pi-native-crm-smoke:pr
+            pi-native-smoke:pr
 
           # Espera o boot; falha rápido se o processo morreu (crashloop).
           pronto=nao
@@ -396,7 +394,7 @@ jobs:
             -v "$PWD/tests/fixtures/sample-text.pdf:/fixture.pdf:ro" \
             -v "$PWD/scripts/sonda-pdf-na-imagem.mjs:/sonda-pdf-na-imagem.mjs:ro" \
             -e PDF_ESPERADO="pi-native-crm RAG fixture" \
-            pi-native-crm-smoke:pr node /sonda-pdf-na-imagem.mjs
+            pi-native-smoke:pr node /sonda-pdf-na-imagem.mjs
 
       - name: Encerrar
         if: always()

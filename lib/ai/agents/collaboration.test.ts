@@ -12,7 +12,21 @@ describe("bounded opportunity-review collaboration", () => {
   it("keeps every specialist read-only and the parent as the only writer", () => {
     expect(validateCollaborationPlan(OPPORTUNITY_REVIEW_PLAN)).toEqual([]);
     expect(OPPORTUNITY_REVIEW_PLAN.writer).toBe("parent_only");
+    expect(OPPORTUNITY_REVIEW_PLAN.conflictPolicy).toBe("parent_governance");
     expect(OPPORTUNITY_REVIEW_PLAN.specialists.every((item) => item.effect === "read")).toBe(true);
+    const writable = {
+      ...OPPORTUNITY_REVIEW_PLAN,
+      specialists: [{ ...OPPORTUNITY_REVIEW_PLAN.specialists[0]!, effect: "write" as "read" }],
+    };
+    expect(validateCollaborationPlan(writable)).toContain("specialist_not_read_only:customer_evidence");
+    expect(validateCollaborationPlan({
+      ...OPPORTUNITY_REVIEW_PLAN,
+      writer: "shared" as "parent_only",
+    })).toContain("single_writer_required");
+    expect(validateCollaborationPlan({
+      ...OPPORTUNITY_REVIEW_PLAN,
+      conflictPolicy: "surface_to_parent" as "parent_governance",
+    })).toContain("parent_governance_required");
   });
 
   it("covers independent customer, opportunity and policy evidence domains", () => {

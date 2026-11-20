@@ -13,6 +13,7 @@ import type * as OpenrouterProviderModule from "@earendil-works/pi-ai/providers/
 import type { StreamFn } from "@earendil-works/pi-agent-core";
 
 import { allowlistedFetch, buildAllowlist } from "../../agent-engine/edge/egress";
+import { baseOpenCodeConfigurada, cabecalhosOpenCode } from "../../ai/opencode-endpoint";
 import { importNativeEsm, isTsxWorker } from "./native-import";
 import type { RuntimeModelBinding } from "../types";
 
@@ -95,6 +96,16 @@ async function providerFor(id: string): Promise<PiProvider> {
   }
 }
 
+function baseUrlFromInstallation(provider: string): string | undefined {
+  if (provider === "openrouter") {
+    return process.env.OPENROUTER_BASE_URL?.trim() || undefined;
+  }
+  if (provider === "opencode") {
+    return baseOpenCodeConfigurada(process.env.OPENCODE_BASE_URL);
+  }
+  return undefined;
+}
+
 function modelFor(provider: PiProvider, binding: RuntimeModelBinding): Model<Api> {
   const catalogModel = provider.getModels().find((entry) => entry.id === binding.model);
   const template = catalogModel ?? provider.getModels()[0];
@@ -115,9 +126,7 @@ function modelFor(provider: PiProvider, binding: RuntimeModelBinding): Model<Api
       reasoning: binding.reasoning !== undefined,
       baseUrl:
         binding.baseUrl ??
-        (binding.provider === "openrouter"
-          ? process.env.OPENROUTER_BASE_URL?.trim() || undefined
-          : undefined) ??
+        baseUrlFromInstallation(binding.provider) ??
         (catalogModel === undefined ? DEFAULT_BASE_URL[binding.provider] : template.baseUrl) ??
         "",
     };
@@ -130,9 +139,7 @@ function modelFor(provider: PiProvider, binding: RuntimeModelBinding): Model<Api
     provider: binding.provider,
     baseUrl:
       binding.baseUrl ??
-      (binding.provider === "openrouter"
-        ? process.env.OPENROUTER_BASE_URL?.trim() || undefined
-        : undefined) ??
+      baseUrlFromInstallation(binding.provider) ??
       DEFAULT_BASE_URL[binding.provider] ??
       "",
     reasoning: binding.reasoning !== undefined,
@@ -152,12 +159,16 @@ export async function resolvePiModel(binding: RuntimeModelBinding): Promise<Reso
     return allowlistedFetch(target, init, { allowlist });
   };
 
+  const headers = {
+    ...(binding.provider === "opencode" ? cabecalhosOpenCode(process.env.OPENCODE_SESSION) : {}),
+    ...binding.headers,
+  };
   const streamFn: StreamFn = (requestedModel, context, options) =>
     provider.streamSimple(requestedModel, context, {
       ...options,
       apiKey: binding.apiKey,
       fetch: containedFetch,
-      ...(binding.headers !== undefined ? { headers: binding.headers } : {}),
+      ...(Object.keys(headers).length > 0 ? { headers } : {}),
       ...(binding.maxOutputTokens !== undefined ? { maxTokens: binding.maxOutputTokens } : {}),
       ...(binding.temperature !== undefined ? { temperature: binding.temperature } : {}),
       ...(binding.topP !== undefined || binding.topK !== undefined
