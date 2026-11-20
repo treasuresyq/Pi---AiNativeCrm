@@ -11,7 +11,13 @@ playwright.config.ts
 *.png
 *.log
 .lina
-docs
+# The runtime ontology registry imports this committed snapshot at build time.
+# Keep the rest of the audit archive out of the image.
+docs/*
+!docs/audits/
+docs/audits/*
+!docs/audits/ontology-32/
+!docs/audits/ontology-32/snapshot-v1.json
 tasks
 scratchpad
 .vercel
