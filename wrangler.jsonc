@@ -5,5 +5,11 @@
   "workers_dev": true,
   "assets": {
     "directory": "./public"
-  }
+  },
+  "routes": [
+    {
+      "pattern": "crm.treasuresyq.top",
+      "custom_domain": true
+    }
+  ]
 }
