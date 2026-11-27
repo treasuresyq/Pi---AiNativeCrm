@@ -1,1 +1,53 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content"><meta name="description" content="Pi Native CRM 公开交互演示，使用虚构数据模拟完整管理导航、客户服务、销售、AI、分析与设置。"><link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 216 216%27%3E%3Crect width=%27216%27 height=%27216%27 rx=%2738%27 fill=%27%23171513%27/%3E%3Cg fill=%27%23d79376%27 transform=%27translate(13 13) scale(.88)%27%3E%3Cpath d=%27M26 108V43c0-10 8-18 18-18h54c56 0 91 33 91 81s-35 81-91 81H45l34-34h19c35 0 56-17 56-47s-21-47-56-47H60v49Z%27/%3E%3Crect x=%2726%27 y=%27125%27 width=%2734%27 height=%2734%27 rx=%274%27/%3E%3C/g%3E%3C/svg%3E"><title>Pi Native CRM · 交互演示</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="demo-lab.css"><link rel="stylesheet" href="inspection.css"><link rel="stylesheet" href="modern.css"><link rel="stylesheet" href="agent-services.css"><link rel="stylesheet" href="motion.css"><link rel="stylesheet" href="welcome-dialog.css"></head><body><div id="app"></div><script src="catalog.js"></script><script src="app.js"></script><script src="full-ui.js"></script><script src="demo-fixtures.js"></script><script src="demo-engine.js"></script><script src="demo-lab.js"></script><script src="inspection.js"></script><script src="real-recordings.js"></script><script src="agent-services.js"></script><script src="motion.js"></script><script src="welcome-dialog.js"></script></body></html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="description" content="Pi Native CRM 静态交互演示站 — 覆盖会话收件箱、Agent-CRM 工作台、业务本体论语义层、客户记忆闭环与销售漏斗。" />
+  <title>Pi Native CRM · 静态演示工作台</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 216 216'%3E%3Crect width='216' height='216' rx='38' fill='%23171513'/%3E%3Cg fill='%23d79376' transform='translate(13 13) scale(.88)'%3E%3Cpath d='M26 108V43c0-10 8-18 18-18h54c56 0 91 33 91 81s-35 81-91 81H45l34-34h19c35 0 56-17 56-47s-21-47-56-47H60v49Z'/%3E%3Crect x='26' y='125' width='34' height='34' rx='4'/%3E%3C/g%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="followups/followups.429e5d7b2d20.css" />
+</head>
+<body>
+  <div id="app"></div>
+  <script src="data.js"></script>
+  <script src="followups-state.js"></script>
+  <script src="views.js"></script>
+  <script src="app.js"></script>
+  <script src="welcome.js"></script>
+  <script>
+    /* Names and the publish ink are applied as the nodes appear, without
+       waiting for the module. A cached stylesheet cannot hide the label. */
+    (function () {
+      function textOf(el) {
+        return (el.innerText || "").replace(/\s+/g, " ").trim();
+      }
+      function paint(el) {
+        if (!el || el.nodeType !== 1 || !el.matches) return;
+        if (el.matches("[data-testid^='palette-add-']")) {
+          var label = textOf(el);
+          if (label) el.setAttribute("aria-label", label);
+        }
+        if (el.matches("button.bg-accent, button.text-accent-foreground")) {
+          var fg = getComputedStyle(document.documentElement).getPropertyValue("--color-accent-fg").trim() || "#ffffff";
+          el.style.setProperty("color", fg, "important");
+          el.style.setProperty("-webkit-text-fill-color", fg, "important");
+        }
+        var nested = el.querySelectorAll
+          ? el.querySelectorAll("[data-testid^='palette-add-'], button.bg-accent, button.text-accent-foreground")
+          : [];
+        for (var i = 0; i < nested.length; i++) paint(nested[i]);
+      }
+      new MutationObserver(function (records) {
+        for (var i = 0; i < records.length; i++) {
+          var added = records[i].addedNodes;
+          for (var j = 0; j < added.length; j++) paint(added[j]);
+        }
+      }).observe(document.documentElement, { childList: true, subtree: true });
+    })();
+  </script>
+  <script type="module" src="followups/followups.d84bc7f1c128.js"></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"8220ed9366db4431ab54c87c8e7c9656","r":1,"spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>
