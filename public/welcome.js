@@ -829,6 +829,9 @@
 
   function autoMount() {
     if (document.getElementById(MODAL_ID)) return;
+    try {
+      if (localStorage.getItem(STORAGE_KEY)) return;
+    } catch (e) {}
     if (window.location.pathname.indexOf('about') >= 0) return;
     openModal('arch');
   }

@@ -1,7 +1,7 @@
 'use strict';
 
 (function () {
-  const STORAGE_KEY = 'pi_native_crm_static_demo_v1';
+  const STORAGE_KEY = 'pi_native_crm_static_demo_v3';
 
   const ICONS = {
     inbox: '<path d="M4 13V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7M4 13l3.5 5h9L20 13M4 13h4l2 2h4l2-2h4"/>',
@@ -37,6 +37,13 @@
 
   function fmtCny(cents) {
     return '¥' + (Number(cents || 0) / 100).toLocaleString('zh-CN');
+  }
+
+  function avatarInner(ct) {
+    if (ct && ct.avatar) {
+      return `<img src="${esc(ct.avatar)}" alt="${esc(ct.name || '客户')}" />`;
+    }
+    return esc((ct?.name || '客')[0]);
   }
 
   function loadState() {
@@ -93,7 +100,7 @@
           <div style="padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;">
             <div style="display:flex;align-items:center;gap:8px;min-width:0;">
               <button class="btn sm ghost" id="m-back-list" style="padding:4px 6px;">${svg('back', 18)}</button>
-              <div class="avatar-circle" style="width:32px;height:32px;font-size:12.5px;">${esc((ct?.name || '客')[0])}</div>
+              <div class="avatar-circle" style="width:32px;height:32px;font-size:12.5px;">${avatarInner(ct)}</div>
               <div style="min-width:0;">
                 <div style="font-weight:650;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(ct?.name || '客户')}</div>
                 <div class="small muted">${esc(conv.channel)} · ${conv.status === 'human' ? '人工接管' : 'AI 托管'}</div>
@@ -162,7 +169,7 @@
           const ct = state.contacts.find((x) => x.id === c.contactId);
           return `
             <div class="conv-card" data-m-open-conv="${c.id}">
-              <div class="avatar-circle">${esc((ct?.name || '客')[0])}</div>
+              <div class="avatar-circle">${avatarInner(ct)}</div>
               <div style="flex:1;min-width:0;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
                   <strong style="font-size:14.5px;display:flex;align-items:center;gap:6px;">
@@ -414,7 +421,7 @@
         .map(
           (c) => `
         <div class="card" style="display:flex;align-items:center;gap:12px;">
-          <div class="avatar-circle">${esc(c.name[0])}</div>
+          <div class="avatar-circle">${avatarInner(c)}</div>
           <div style="flex:1;min-width:0;">
             <div style="display:flex;justify-content:space-between;">
               <strong>${esc(c.name)}</strong>
